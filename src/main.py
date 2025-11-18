@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-
-from .core.config import settings
+from api.v1.routes import router as v1_router
+from core.config import settings
 
 
 @asynccontextmanager
@@ -16,6 +16,8 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+app.include_router(v1_router, prefix="/v1")
 
 # CORS middleware
 app.add_middleware(
@@ -44,4 +46,4 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

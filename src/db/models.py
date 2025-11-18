@@ -1,9 +1,12 @@
 from typing import List, Optional
 from sqlalchemy import ForeignKey, String
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship # DeclarativeBase, 
+from sqlalchemy.orm import declarative_base
 
-class Base(DeclarativeBase):
-    pass
+Base = declarative_base()
+
+# class Base(DeclarativeBase):
+#    pass
 
 class User(Base):
     __tablename__ = "user"
@@ -19,7 +22,7 @@ class User(Base):
 
     isu_number: Mapped[int | None] = mapped_column(nullable=True)
     tg_nickname: Mapped[str | None] = mapped_column(String(40), nullable=True)
-    email: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(50), nullable=True, unique=True)
 
     resumes: Mapped[list["Resume"]] = relationship(
             # TODO I think don't need the delete-orphan, "all" is enough, because we have 1:n relationship
@@ -31,6 +34,7 @@ class User(Base):
 
     def __repr__(self) -> str:
         return f"User(id={self.id!r}, first_name={self.first_name!r}, isu_number={self.isu_number!r})"
+
 
 class Resume(Base):
     __tablename__ = "resume"
