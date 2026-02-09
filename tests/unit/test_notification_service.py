@@ -12,6 +12,9 @@ from src.repository.project_participation_repository import ProjectParticipation
 from src.repository.project_repository import ProjectRepository
 from src.services.notification_service import NotificationService
 
+EXPECTED_SENDER_ID = 2
+EXPECTED_PARTICIPANTS_COUNT = 3
+
 
 class TestNotificationService:
     """Тесты для NotificationService"""
@@ -58,7 +61,7 @@ class TestNotificationService:
 
         created_data = mock_notification_repository.create.call_args[0][0]
         assert created_data["recipient_id"] == 1
-        assert created_data["sender_id"] == 2
+        assert created_data["sender_id"] == EXPECTED_SENDER_ID
         assert created_data["type"] == "system_alert"
         assert created_data["status"] == "pending"
         assert created_data["title"] == "Системное уведомление"
@@ -98,7 +101,7 @@ class TestNotificationService:
         mock_notification_repository.create_many.assert_called_once()
 
         data_list = mock_notification_repository.create_many.call_args[0][0]
-        assert len(data_list) == 3
+        assert len(data_list) == EXPECTED_PARTICIPANTS_COUNT
         assert {item["recipient_id"] for item in data_list} == {10, 11, 12}
 
     @pytest.mark.asyncio
