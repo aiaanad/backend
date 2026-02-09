@@ -8,7 +8,63 @@ In order to run the backend:
 
 1. Install **uv** on your system
 2. cd into the backend repository, run `uv sync` - the project dependencies will be installed in a virtual environment
-3. `uv run main.py` or  `source .venv/bin/activate; uvicorn main:app --host 0.0.0.0 --reload` will run the server, it will be available at *localhost:8000*
+3. `uv python run -m src.main` or  `source .venv/bin/activate; uvicorn main:app --host 0.0.0.0 --reload` will run the server, it will be available at *localhost:8000*
+
+## Run with Docker (backend + PostgreSQL)
+
+Step-by-step local запуск через контейнеры:
+
+1. Установить Docker Desktop.
+2. Создать `.env` в корне `backend` (минимум):
+
+	```bash
+	DATABASE_URL=postgresql+asyncpg://postgres:password@postgres/backend_db
+	SECRET_KEY=your-secret-key-here
+	```
+
+3. Запустить сервисы:
+
+	```bash
+	docker compose up -d postgres backend
+	```
+
+4. Проверить API: `http://localhost:8083/docs`.
+5. Остановить:
+
+	```bash
+	docker compose down
+	```
+
+Опционально: `pgadmin` доступен на `http://localhost:28080` (логин/пароль в `docker-compose.yml`).
+
+# Notifications
+
+Система уведомлений строится на шаблонах и payload:
+
+- `template_key` определяет тип уведомления.
+- `payload` содержит данные для подстановки в шаблон.
+- `title` и `body` формируются в сервисе через `.format(**payload)`.
+
+Поддерживаемые типы (`NotificationType`):
+
+- `project_invitation`
+- `project_removal`
+- `join_request`
+- `join_request_approved`
+- `join_request_rejected`
+- `project_announcement`
+- `system_alert`
+
+Пример: шаблон `project_announcement` требует `payload` с `project_name` и `message`.
+
+### Endpoints
+
+- `GET /v1/notifications/me` — список уведомлений пользователя
+- `POST /v1/notifications/send/user` — отправка пользователю
+- `POST /v1/notifications/send/project` — отправка участникам проекта
+- `POST /v1/notifications/{notification_id}/read` — отметить прочитанным
+- `POST /v1/notifications/read-all` — отметить все прочитанными
+- `GET /v1/notifications/templates` — обязательные поля шаблонов
 
 # Development
 
