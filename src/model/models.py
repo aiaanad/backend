@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.database import Base
@@ -37,6 +37,20 @@ class User(Base):
     )
     projects_in: Mapped[list[ProjectParticipation]] = relationship(
         back_populates="participant",
+        cascade="all, delete-orphan",
+    )
+    received_notifications: Mapped[list[Notification]] = relationship(
+        foreign_keys="Notification.recipient_id",
+        back_populates="recipient",
+        cascade="all, delete-orphan",
+    )
+    sent_notifications: Mapped[list[Notification]] = relationship(
+        foreign_keys="Notification.sender_id",
+        back_populates="sender",
+    )
+    notification_settings: Mapped[NotificationSettings | None] = relationship(
+        back_populates="user",
+        uselist=False,
         cascade="all, delete-orphan",
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -89,6 +103,7 @@ class Project(Base):
     # skills (particular, like docker, git etc.)
     # roles (general, like backend, Project Management etc.)
     participants: Mapped[list[ProjectParticipation]] = relationship(back_populates="project")
+    notifications: Mapped[list[Notification]] = relationship(back_populates="project")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
@@ -190,3 +205,68 @@ class AuditLog(Base):
 
     def __repr__(self) -> str:
         return f"AuditLog(id={self.id}, entity_type={self.entity_type!r}, entity_id={self.entity_id}, action={self.action!r})"
+
+
+class Notification(Base):
+    """SQLAlchemy модель для уведомлений"""
+
+    __tablename__ = "notifications"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)  # UUID как строка
+    recipient_id: Mapped[int] = mapped_column(ForeignKey("user.id"), nullable=False)
+    sender_id: Mapped[int | None] = mapped_column(ForeignKey("user.id"), nullable=True)
+    project_id: Mapped[int | None] = mapped_column(ForeignKey("project.id"), nullable=True)
+
+    type: Mapped[str] = mapped_column(String(50), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+
+    channels: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=True)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=True)
+
+    recipient: Mapped[User] = relationship(
+        foreign_keys=[recipient_id],
+        back_populates="received_notifications",
+    )
+    sender: Mapped[User | None] = relationship(
+        foreign_keys=[sender_id],
+        back_populates="sent_notifications",
+    )
+    project: Mapped[Project | None] = relationship(back_populates="notifications")
+
+    def __repr__(self) -> str:
+        return f"NotificationModel(id={self.id!r}, type={self.type!r})"
+
+
+class NotificationSettings(Base):
+    """SQLAlchemy модель для настроек уведомлений"""
+
+    __tablename__ = "notification_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"), unique=True, nullable=False)
+
+    email_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    telegram_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    in_app_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    project_invitation_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    join_request_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    join_response_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    project_announcement_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    system_alert_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    user: Mapped[User] = relationship(back_populates="notification_settings")
+
+    def __repr__(self) -> str:
+        return f"NotificationSettingsModel(user_id={self.user_id!r})"
