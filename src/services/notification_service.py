@@ -108,7 +108,6 @@ class NotificationService:
             "status": "pending",
             "title": title,
             "body": body,
-            "channels": [],
         }
         return await self._notification_repository.create(data)
 
@@ -145,7 +144,6 @@ class NotificationService:
                 "status": "pending",
                 "title": title,
                 "body": body,
-                "channels": [],
             }
             for recipient_id in recipients
         ]

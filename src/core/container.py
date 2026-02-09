@@ -6,12 +6,17 @@ from fastapi import Depends
 
 from src.core.uow import IUnitOfWork, SqlAlchemyUoW
 from src.repository.audit_repository import AuditRepository
+from src.repository.notification_repository import NotificationRepository
+from src.repository.notification_settings_repository import NotificationSettingsRepository
+from src.repository.project_participation_repository import ProjectParticipationRepository
 from src.repository.project_repository import ProjectRepository
 from src.repository.resume_repository import ResumeRepository
 from src.repository.session_repository import SessionRepository
 from src.repository.user_repository import UserRepository
 from src.services.audit_service import AuditService
 from src.services.auth_service import AuthService
+from src.services.notification_service import NotificationService
+from src.services.notification_settings_service import NotificationSettingsService
 from src.services.project_service import ProjectService
 from src.services.resume_service import ResumeService
 from src.services.session_service import SessionService
@@ -42,6 +47,22 @@ async def get_session_repository(uow: IUnitOfWork = Depends(get_uow)) -> Session
 
 async def get_audit_repository(uow: IUnitOfWork = Depends(get_uow)) -> AuditRepository:
     return AuditRepository(uow)
+
+
+async def get_notification_repository(uow: IUnitOfWork = Depends(get_uow)) -> NotificationRepository:
+    return NotificationRepository(uow)
+
+
+async def get_notification_settings_repository(
+    uow: IUnitOfWork = Depends(get_uow),
+) -> NotificationSettingsRepository:
+    return NotificationSettingsRepository(uow)
+
+
+async def get_project_participation_repository(
+    uow: IUnitOfWork = Depends(get_uow),
+) -> ProjectParticipationRepository:
+    return ProjectParticipationRepository(uow)
 
 
 # Service
@@ -79,3 +100,17 @@ async def get_audit_service(
     audit_repository: AuditRepository = Depends(get_audit_repository),
 ) -> AuditService:
     return AuditService(audit_repository)
+
+
+async def get_notification_service(
+    notification_repository: NotificationRepository = Depends(get_notification_repository),
+    project_repository: ProjectRepository = Depends(get_project_repository),
+    project_participation_repository: ProjectParticipationRepository = Depends(get_project_participation_repository),
+) -> NotificationService:
+    return NotificationService(notification_repository, project_repository, project_participation_repository)
+
+
+async def get_notification_settings_service(
+    notification_settings_repository: NotificationSettingsRepository = Depends(get_notification_settings_repository),
+) -> NotificationSettingsService:
+    return NotificationSettingsService(notification_settings_repository)
