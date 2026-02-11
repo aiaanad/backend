@@ -8,6 +8,9 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://postgres:password@localhost/backend_db"
     DEBUG: str = "false"
 
+    # Redis
+    REDIS_URL: str = "redis://localhost:6379/0"
+
     # Environment
     ENVIRONMENT: str = "development"
 
