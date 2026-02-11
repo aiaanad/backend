@@ -58,3 +58,9 @@ class NotificationRepository(BaseRepository[Notification, dict, dict]):
                 notification.status = "read"
                 updated += 1
         return updated
+
+    async def update_status(self, notification_id: str, status: str) -> None:
+        """Обновляет статус уведомления"""
+        notification = await self.get_by_id(notification_id)
+        if notification:
+            notification.status = status
