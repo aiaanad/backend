@@ -21,6 +21,31 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    networks:
+      - learning_projects_network
+    ports:
+      - "6379:6379"
+
+  celery_worker:
+    build: .
+    container_name: celery_worker
+    command: celery -A src.core.celery_app worker --loglevel=info
+    networks:
+      - learning_projects_network
+    volumes:
+      - ./:/app
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+
   pgadmin:
     restart: always
     container_name: pgadmin
