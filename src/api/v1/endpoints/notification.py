@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, status
 
 from src.core.container import get_notification_service, get_notification_settings_service
 from src.core.dependencies import get_current_user
+from src.core.logging_config import api_logger
 from src.model.models import User
 from src.notifications.templates import build_notification_examples
 from src.schema.notification import (
@@ -24,23 +25,38 @@ notification_router = APIRouter(tags=["notification"])
 
 @notification_router.get("/notifications", response_model=NotificationListResponse)
 async def fetch_my_notifications(
+    request: Request,
     page: int = Query(1, ge=1, description="Номер страницы"),
     limit: int = Query(10, ge=1, le=100, description="Количество уведомлений на странице"),
     notification_service: NotificationService = Depends(get_notification_service),
     current_user: User = Depends(get_current_user),
 ) -> NotificationListResponse:
     """Возвращает список уведомлений текущего пользователя с пагинацией"""
-    notifications, total = await notification_service.list_user_notifications(current_user.id, page, limit)
-    total_pages = (total + limit - 1) // limit if total > 0 else 0
-    items = [NotificationResponse.model_validate(notification) for notification in notifications]
-
-    return NotificationListResponse(
-        items=items,
-        total=total,
-        page=page,
-        limit=limit,
-        total_pages=total_pages,
-    )
+    client_ip = request.client.host if request.client else "unknown"
+    try:
+        notifications, total = await notification_service.list_user_notifications(current_user.id, page, limit)
+        total_pages = (total + limit - 1) // limit if total > 0 else 0
+        items = [NotificationResponse.model_validate(notification) for notification in notifications]
+        response = NotificationListResponse(
+            items=items,
+            total=total,
+            page=page,
+            limit=limit,
+            total_pages=total_pages,
+        )
+    except Exception as e:
+        api_logger.log_error(method="GET", path="/notifications", error=e, user_id=current_user.id)
+        raise
+    else:
+        api_logger.log_request(
+            method="GET",
+            path="/notifications",
+            user_id=current_user.id,
+            ip_address=client_ip,
+            status_code=200,
+            response_time=0.0,
+        )
+        return response
 
 
 @notification_router.post(
@@ -56,6 +72,7 @@ async def fetch_my_notifications(
     },
 )
 async def send_notification_to_user(
+    request: Request,
     user_id: int,
     request_data: NotificationSendToUserRequest = Body(
         ...,
@@ -65,14 +82,28 @@ async def send_notification_to_user(
     current_user: User = Depends(get_current_user),
 ) -> NotificationResponse:
     """Отправляет уведомление одному пользователю"""
-    notification = await notification_service.send_to_user(
-        recipient_id=user_id,
-        sender_id=current_user.id,
-        template_key=request_data.template_key.value,
-        payload=request_data.payload,
-        project_id=request_data.project_id,
-    )
-    return NotificationResponse.model_validate(notification)
+    client_ip = request.client.host if request.client else "unknown"
+    try:
+        notification = await notification_service.send_to_user(
+            recipient_id=user_id,
+            sender_id=current_user.id,
+            template_key=request_data.template_key.value,
+            payload=request_data.payload,
+            project_id=request_data.project_id,
+        )
+    except Exception as e:
+        api_logger.log_error(method="POST", path="/users/{user_id}/notifications", error=e, user_id=current_user.id)
+        raise
+    else:
+        api_logger.log_request(
+            method="POST",
+            path="/users/{user_id}/notifications",
+            user_id=current_user.id,
+            ip_address=client_ip,
+            status_code=200,
+            response_time=0.0,
+        )
+        return NotificationResponse.model_validate(notification)
 
 
 @notification_router.post(
@@ -89,6 +120,7 @@ async def send_notification_to_user(
     },
 )
 async def send_notification_to_project(
+    request: Request,
     project_id: int,
     request_data: NotificationSendToProjectRequest = Body(
         ...,
@@ -98,18 +130,38 @@ async def send_notification_to_project(
     current_user: User = Depends(get_current_user),
 ) -> list[NotificationResponse]:
     """Отправляет уведомления участникам проекта"""
-    notifications = await notification_service.send_to_project_participants(
-        project_id=project_id,
-        sender_id=current_user.id,
-        template_key=request_data.template_key.value,
-        payload=request_data.payload,
-        include_author=request_data.include_author,
-    )
-    return [NotificationResponse.model_validate(notification) for notification in notifications]
+    client_ip = request.client.host if request.client else "unknown"
+    try:
+        notifications = await notification_service.send_to_project_participants(
+            project_id=project_id,
+            sender_id=current_user.id,
+            template_key=request_data.template_key.value,
+            payload=request_data.payload,
+            include_author=request_data.include_author,
+        )
+    except Exception as e:
+        api_logger.log_error(
+            method="POST",
+            path="/projects/{project_id}/notifications",
+            error=e,
+            user_id=current_user.id,
+        )
+        raise
+    else:
+        api_logger.log_request(
+            method="POST",
+            path="/projects/{project_id}/notifications",
+            user_id=current_user.id,
+            ip_address=client_ip,
+            status_code=200,
+            response_time=0.0,
+        )
+        return [NotificationResponse.model_validate(notification) for notification in notifications]
 
 
 @notification_router.patch("/notifications/{notification_id}", response_model=NotificationResponse)
 async def mark_notification_read(
+    request: Request,
     notification_id: str,
     request_data: NotificationReadUpdateRequest,
     notification_service: NotificationService = Depends(get_notification_service),
@@ -121,12 +173,27 @@ async def mark_notification_read(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only is_read=true is supported",
         )
-    notification = await notification_service.mark_read(current_user.id, notification_id)
-    return NotificationResponse.model_validate(notification)
+    client_ip = request.client.host if request.client else "unknown"
+    try:
+        notification = await notification_service.mark_read(current_user.id, notification_id)
+    except Exception as e:
+        api_logger.log_error(method="PATCH", path="/notifications/{notification_id}", error=e, user_id=current_user.id)
+        raise
+    else:
+        api_logger.log_request(
+            method="PATCH",
+            path="/notifications/{notification_id}",
+            user_id=current_user.id,
+            ip_address=client_ip,
+            status_code=200,
+            response_time=0.0,
+        )
+        return NotificationResponse.model_validate(notification)
 
 
 @notification_router.patch("/notifications")
 async def mark_all_notifications_read(
+    request: Request,
     request_data: NotificationMarkAllReadRequest,
     notification_service: NotificationService = Depends(get_notification_service),
     current_user: User = Depends(get_current_user),
@@ -137,35 +204,95 @@ async def mark_all_notifications_read(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only mark_all_read=true is supported",
         )
-    updated = await notification_service.mark_all_read(current_user.id)
-    return {"updated": updated}
+    client_ip = request.client.host if request.client else "unknown"
+    try:
+        updated = await notification_service.mark_all_read(current_user.id)
+    except Exception as e:
+        api_logger.log_error(method="PATCH", path="/notifications", error=e, user_id=current_user.id)
+        raise
+    else:
+        api_logger.log_request(
+            method="PATCH",
+            path="/notifications",
+            user_id=current_user.id,
+            ip_address=client_ip,
+            status_code=200,
+            response_time=0.0,
+        )
+        return {"updated": updated}
 
 
 @notification_router.get("/notifications/templates")
 async def get_notification_templates(
+    request: Request,
     notification_service: NotificationService = Depends(get_notification_service),
     _current_user: User = Depends(get_current_user),
 ) -> dict:
     """Возвращает список обязательных полей шаблонов"""
-    return notification_service.list_templates()
+    client_ip = request.client.host if request.client else "unknown"
+    try:
+        templates = notification_service.list_templates()
+    except Exception as e:
+        api_logger.log_error(method="GET", path="/notifications/templates", error=e, user_id=None)
+        raise
+    else:
+        api_logger.log_request(
+            method="GET",
+            path="/notifications/templates",
+            user_id=None,
+            ip_address=client_ip,
+            status_code=200,
+            response_time=0.0,
+        )
+        return templates
 
 
 @notification_router.get("/notifications/settings", response_model=NotificationSettingsResponse)
 async def get_notification_settings(
+    request: Request,
     notification_settings_service: NotificationSettingsService = Depends(get_notification_settings_service),
     current_user: User = Depends(get_current_user),
 ) -> NotificationSettingsResponse:
     """Возвращает настройки уведомлений текущего пользователя"""
-    settings = await notification_settings_service.get_settings(current_user.id)
-    return NotificationSettingsResponse.model_validate(settings)
+    client_ip = request.client.host if request.client else "unknown"
+    try:
+        settings = await notification_settings_service.get_settings(current_user.id)
+    except Exception as e:
+        api_logger.log_error(method="GET", path="/notifications/settings", error=e, user_id=current_user.id)
+        raise
+    else:
+        api_logger.log_request(
+            method="GET",
+            path="/notifications/settings",
+            user_id=current_user.id,
+            ip_address=client_ip,
+            status_code=200,
+            response_time=0.0,
+        )
+        return NotificationSettingsResponse.model_validate(settings)
 
 
 @notification_router.patch("/notifications/settings", response_model=NotificationSettingsResponse)
 async def update_notification_settings(
+    request: Request,
     request_data: NotificationSettingsUpdate,
     notification_settings_service: NotificationSettingsService = Depends(get_notification_settings_service),
     current_user: User = Depends(get_current_user),
 ) -> NotificationSettingsResponse:
     """Обновляет настройки уведомлений текущего пользователя"""
-    settings = await notification_settings_service.update_settings(current_user.id, request_data)
-    return NotificationSettingsResponse.model_validate(settings)
+    client_ip = request.client.host if request.client else "unknown"
+    try:
+        settings = await notification_settings_service.update_settings(current_user.id, request_data)
+    except Exception as e:
+        api_logger.log_error(method="PATCH", path="/notifications/settings", error=e, user_id=current_user.id)
+        raise
+    else:
+        api_logger.log_request(
+            method="PATCH",
+            path="/notifications/settings",
+            user_id=current_user.id,
+            ip_address=client_ip,
+            status_code=200,
+            response_time=0.0,
+        )
+        return NotificationSettingsResponse.model_validate(settings)

@@ -10,6 +10,7 @@ from src.repository.notification_repository import NotificationRepository
 from src.repository.project_participation_repository import ProjectParticipationRepository
 from src.repository.project_repository import ProjectRepository
 
+
 class NotificationService:
     """Сервис работы с уведомлениями"""
 
@@ -75,10 +76,11 @@ class NotificationService:
         }
         notification = await self._notification_repository.create(data)
         from src.services.notification_tasks import send_notification_task
+
         send_notification_task.delay(notification.id)
 
         return notification
-        
+
     async def send_to_project_participants(
         self,
         project_id: int,
@@ -117,6 +119,7 @@ class NotificationService:
         ]
         notifications = await self._notification_repository.create_many(notifications_data)
         from src.services.notification_tasks import send_notification_task
+
         for n in notifications:
             send_notification_task.delay(n.id)
 

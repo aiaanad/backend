@@ -7,6 +7,7 @@ import pytest
 
 from src.core.exceptions import NotFoundError, ValidationError
 from src.model.models import Notification, Project
+from src.notifications.templates import list_notification_required_fields
 from src.repository.notification_repository import NotificationRepository
 from src.repository.project_participation_repository import ProjectParticipationRepository
 from src.repository.project_repository import ProjectRepository
@@ -134,3 +135,44 @@ class TestNotificationService:
         # when & then
         with pytest.raises(ValidationError, match="Missing payload fields"):
             NotificationService._render_template("project_announcement", {"project_name": "Test Project"})
+
+    def test_should_list_required_template_fields(self):
+        """Тест должен вернуть обязательные поля шаблонов"""
+        # when
+        result = NotificationService.list_templates()
+
+        # then
+        assert result == list_notification_required_fields()
+
+    @pytest.mark.asyncio
+    async def test_should_execute_external_sending(self):
+        """Тест должен обновить статус при отправке уведомления"""
+        # given
+        mock_notification_repository = Mock(spec=NotificationRepository)
+        mock_project_repository = Mock(spec=ProjectRepository)
+        mock_participation_repository = Mock(spec=ProjectParticipationRepository)
+
+        mock_notification_repository.get_by_id.return_value = Notification(
+            id="test-id",
+            recipient_id=1,
+            sender_id=2,
+            project_id=None,
+            type="system_alert",
+            status="pending",
+            title="Системное уведомление",
+            body="Test message",
+            channels=[],
+            created_at=datetime.now(),
+        )
+
+        service = NotificationService(
+            mock_notification_repository,
+            mock_project_repository,
+            mock_participation_repository,
+        )
+
+        # when
+        await service.execute_external_sending("test-id")
+
+        # then
+        mock_notification_repository.update_status.assert_called_once_with("test-id", "sent")
