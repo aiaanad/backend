@@ -9,7 +9,6 @@ class NotificationSettingsService:
     """Сервис настроек уведомлений"""
 
     def __init__(self, notification_settings_repository: NotificationSettingsRepository) -> None:
-        """Инициализирует сервис с репозиторием"""
         self._notification_settings_repository = notification_settings_repository
 
     async def get_settings(self, user_id: int) -> NotificationSettings:

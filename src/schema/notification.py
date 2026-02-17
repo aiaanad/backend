@@ -22,7 +22,6 @@ class NotificationType(StrEnum):
 class NotificationSendToUserRequest(BaseModel):
     """Запрос на отправку уведомления пользователю"""
 
-    user_id: int | None = None
     project_id: int | None = None
     template_key: NotificationType
     payload: dict[str, Any] = Field(default_factory=dict)
@@ -31,10 +30,21 @@ class NotificationSendToUserRequest(BaseModel):
 class NotificationSendToProjectRequest(BaseModel):
     """Запрос на отправку уведомления участникам проекта"""
 
-    project_id: int
     template_key: NotificationType
     payload: dict[str, Any] = Field(default_factory=dict)
     include_author: bool = True
+
+
+class NotificationReadUpdateRequest(BaseModel):
+    """Запрос на обновление статуса прочитанности уведомления"""
+
+    is_read: bool = True
+
+
+class NotificationMarkAllReadRequest(BaseModel):
+    """Запрос на массовое обновление статуса прочитанности"""
+
+    mark_all_read: bool = True
 
 
 class NotificationTemplate(BaseModel):
