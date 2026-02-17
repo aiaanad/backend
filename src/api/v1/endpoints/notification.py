@@ -5,7 +5,6 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from src.core.container import get_notification_service, get_notification_settings_service
 from src.core.dependencies import get_current_user
 from src.model.models import User
-from src.notifications.templates import build_notification_examples
 from src.schema.notification import (
     NotificationListResponse,
     NotificationMarkAllReadRequest,
@@ -16,6 +15,7 @@ from src.schema.notification import (
     NotificationSettingsResponse,
     NotificationSettingsUpdate,
 )
+from src.notifications.templates import build_notification_examples
 from src.services.notification_service import NotificationService
 from src.services.notification_settings_service import NotificationSettingsService
 
@@ -58,7 +58,7 @@ async def fetch_my_notifications(
 async def send_notification_to_user(
     user_id: int,
     request_data: NotificationSendToUserRequest = Body(
-        ...,  # required
+        ...,
         examples=build_notification_examples(include_project_id=True, include_author=False),
     ),
     notification_service: NotificationService = Depends(get_notification_service),
@@ -91,7 +91,7 @@ async def send_notification_to_user(
 async def send_notification_to_project(
     project_id: int,
     request_data: NotificationSendToProjectRequest = Body(
-        ...,  # required
+        ...,
         examples=build_notification_examples(include_project_id=False, include_author=True),
     ),
     notification_service: NotificationService = Depends(get_notification_service),
