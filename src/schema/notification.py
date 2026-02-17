@@ -87,7 +87,22 @@ class NotificationSettingsResponse(BaseModel):
     project_announcement_enabled: bool
     system_alert_enabled: bool
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "user_id": 1,
+                "email_enabled": True,
+                "telegram_enabled": False,
+                "in_app_enabled": True,
+                "project_invitation_enabled": True,
+                "join_request_enabled": True,
+                "join_response_enabled": True,
+                "project_announcement_enabled": True,
+                "system_alert_enabled": True,
+            }
+        },
+    )
 
 
 class NotificationResponse(BaseModel):
@@ -106,7 +121,25 @@ class NotificationResponse(BaseModel):
     sent_at: datetime | None = None
     read_at: datetime | None = None
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "id": "n-1",
+                "recipient_id": 1,
+                "sender_id": 2,
+                "project_id": 42,
+                "type": "project_announcement",
+                "status": "read",
+                "title": "Объявление проекта",
+                "body": "Новое объявление в проекте «Alpha»: Standup at 10:00",
+                "channels": ["in_app"],
+                "created_at": "2026-02-17T10:00:00Z",
+                "sent_at": "2026-02-17T10:00:05Z",
+                "read_at": "2026-02-17T10:05:00Z",
+            }
+        },
+    )
 
 
 class NotificationListResponse(BaseModel):
@@ -117,3 +150,30 @@ class NotificationListResponse(BaseModel):
     page: int
     limit: int
     total_pages: int
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "items": [
+                    {
+                        "id": "n-1",
+                        "recipient_id": 1,
+                        "sender_id": 2,
+                        "project_id": 42,
+                        "type": "project_announcement",
+                        "status": "read",
+                        "title": "Объявление проекта",
+                        "body": "Новое объявление в проекте «Alpha»: Standup at 10:00",
+                        "channels": ["in_app"],
+                        "created_at": "2026-02-17T10:00:00Z",
+                        "sent_at": "2026-02-17T10:00:05Z",
+                        "read_at": "2026-02-17T10:05:00Z",
+                    }
+                ],
+                "total": 1,
+                "page": 1,
+                "limit": 10,
+                "total_pages": 1,
+            }
+        },
+    )
