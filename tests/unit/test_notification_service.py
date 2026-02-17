@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -49,15 +49,17 @@ class TestNotificationService:
         )
 
         # when
-        result = await service.send_to_user(
-            recipient_id=1,
-            sender_id=2,
-            template_key="system_alert",
-            payload={"message": "Test message"},
-        )
+        with patch("src.services.notification_service.send_notification_task") as mock_task:
+            result = await service.send_to_user(
+                recipient_id=1,
+                sender_id=2,
+                template_key="system_alert",
+                payload={"message": "Test message"},
+            )
 
         # then
         assert result == mock_notification
+        mock_task.delay.assert_called_once_with("test-id")
         mock_notification_repository.create.assert_called_once()
 
         created_data = mock_notification_repository.create.call_args[0][0]
@@ -88,15 +90,17 @@ class TestNotificationService:
         )
 
         # when
-        result = await service.send_to_project_participants(
-            project_id=1,
-            sender_id=2,
-            template_key="project_announcement",
-            payload={"project_name": "Test Project", "message": "Hello"},
-        )
+        with patch("src.services.notification_service.send_notification_task") as mock_task:
+            result = await service.send_to_project_participants(
+                project_id=1,
+                sender_id=2,
+                template_key="project_announcement",
+                payload={"project_name": "Test Project", "message": "Hello"},
+            )
 
         # then
         assert result == []
+        assert mock_task.delay.call_count == EXPECTED_PARTICIPANTS_COUNT
         mock_project_repository.get_by_id.assert_called_once_with(1)
         mock_participation_repository.get_participant_ids_by_project_id.assert_called_once_with(1)
         mock_notification_repository.create_many.assert_called_once()

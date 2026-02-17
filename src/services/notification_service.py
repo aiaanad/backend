@@ -9,6 +9,7 @@ from src.notifications.templates import list_notification_required_fields, list_
 from src.repository.notification_repository import NotificationRepository
 from src.repository.project_participation_repository import ProjectParticipationRepository
 from src.repository.project_repository import ProjectRepository
+from src.services.notification_tasks import send_notification_task
 
 
 class NotificationService:
@@ -75,8 +76,6 @@ class NotificationService:
             "body": body,
         }
         notification = await self._notification_repository.create(data)
-        from src.services.notification_tasks import send_notification_task
-
         send_notification_task.delay(notification.id)
 
         return notification
@@ -118,8 +117,6 @@ class NotificationService:
             for recipient_id in recipients
         ]
         notifications = await self._notification_repository.create_many(notifications_data)
-        from src.services.notification_tasks import send_notification_task
-
         for n in notifications:
             send_notification_task.delay(n.id)
 
