@@ -57,14 +57,22 @@ Step-by-step local запуск через контейнеры:
 
 Пример: шаблон `project_announcement` требует `payload` с `project_name` и `message`.
 
+Шаблоны описаны в [src/notifications/templates.py](src/notifications/templates.py):
+
+- `title` и `body` — строки с плейсхолдерами вида `{project_name}`.
+- `required` — список полей, которые обязаны быть в `payload`.
+- При отправке сервис подставляет данные через `.format(**payload)` и валидирует наличие `required`.
+
 ### Endpoints
 
-- `GET /v1/notifications/me` — список уведомлений пользователя
-- `POST /v1/notifications/send/user` — отправка пользователю
-- `POST /v1/notifications/send/project` — отправка участникам проекта
-- `POST /v1/notifications/{notification_id}/read` — отметить прочитанным
-- `POST /v1/notifications/read-all` — отметить все прочитанными
+- `GET /v1/notifications` — список уведомлений пользователя
+- `POST /v1/users/{user_id}/notifications` — отправка пользователю
+- `POST /v1/projects/{project_id}/notifications` — отправка участникам проекта
+- `PATCH /v1/notifications/{notification_id}` — отметить прочитанным
+- `PATCH /v1/notifications` — отметить все прочитанными
 - `GET /v1/notifications/templates` — обязательные поля шаблонов
+- `GET /v1/notifications/settings` — получить настройки уведомлений
+- `PATCH /v1/notifications/settings` — обновить настройки уведомлений
 
 # Development
 
