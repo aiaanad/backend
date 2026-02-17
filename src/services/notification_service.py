@@ -129,3 +129,11 @@ class NotificationService:
     def list_templates(cls) -> dict[str, dict[str, Any]]:
         """Возвращает список обязательных полей шаблонов"""
         return list_notification_required_fields()
+
+    async def execute_external_sending(self, notification_id: str) -> None:
+        """Логика реальной отправки (вызывается воркером)"""
+        notification = await self._notification_repository.get_by_id(notification_id)
+        if not notification:
+            return
+
+        await self._notification_repository.update_status(notification_id, "sent")

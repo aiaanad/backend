@@ -58,3 +58,12 @@ class NotificationRepository(BaseRepository[Notification, dict, dict]):
                 notification.status = "read"
                 updated += 1
         return updated
+
+    async def update_status(self, notification_id: str, status: str) -> Notification | None:
+        notification = await self.get_by_id(notification_id)
+        if not notification:
+            return None
+        notification.status = status
+        if status == "sent" and notification.sent_at is None:
+            notification.sent_at = datetime.now(UTC)
+        return notification
