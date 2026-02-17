@@ -5,6 +5,8 @@ from .auth import Token
 from .base import Blank, DeleteResponse, FindBase, FindDateRange, FindResult, PaginatedResponse
 from .notification import (
     NotificationListResponse,
+    NotificationMarkAllReadRequest,
+    NotificationReadUpdateRequest,
     NotificationResponse,
     NotificationSendToProjectRequest,
     NotificationSendToUserRequest,
@@ -23,6 +25,8 @@ __all__ = [
     "FindDateRange",
     "FindResult",
     "NotificationListResponse",
+    "NotificationMarkAllReadRequest",
+    "NotificationReadUpdateRequest",
     "NotificationResponse",
     "NotificationSendToProjectRequest",
     "NotificationSendToUserRequest",

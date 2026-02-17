@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from src.core.exceptions import NotFoundError, ValidationError
 from src.model.models import Notification
+from src.notifications.templates import list_notification_required_fields, list_notification_templates
 from src.repository.notification_repository import NotificationRepository
 from src.repository.project_participation_repository import ProjectParticipationRepository
 from src.repository.project_repository import ProjectRepository
@@ -26,43 +27,7 @@ class NotificationService:
     @staticmethod
     def _templates() -> dict[str, dict[str, Any]]:
         """Возвращает словарь шаблонов уведомлений"""
-        return {
-            "project_invitation": {
-                "title": "Приглашение в проект",
-                "body": "Вас пригласили в проект «{project_name}».",
-                "required": ["project_name"],
-            },
-            "project_removal": {
-                "title": "Удаление из проекта",
-                "body": "Вы были удалены из проекта «{project_name}».",
-                "required": ["project_name"],
-            },
-            "join_request": {
-                "title": "Запрос на вступление",
-                "body": "Пользователь {requester_name} хочет вступить в проект «{project_name}».",
-                "required": ["requester_name", "project_name"],
-            },
-            "join_request_approved": {
-                "title": "Запрос одобрен",
-                "body": "Ваш запрос на вступление в проект «{project_name}» одобрен.",
-                "required": ["project_name"],
-            },
-            "join_request_rejected": {
-                "title": "Запрос отклонён",
-                "body": "Ваш запрос на вступление в проект «{project_name}» отклонён.",
-                "required": ["project_name"],
-            },
-            "project_announcement": {
-                "title": "Объявление проекта",
-                "body": "Новое объявление в проекте «{project_name}»: {message}",
-                "required": ["project_name", "message"],
-            },
-            "system_alert": {
-                "title": "Системное уведомление",
-                "body": "{message}",
-                "required": ["message"],
-            },
-        }
+        return list_notification_templates()
 
     @classmethod
     def _render_template(cls, template_key: str, payload: dict[str, Any]) -> tuple[str, str]:
@@ -171,14 +136,12 @@ class NotificationService:
     @classmethod
     def list_templates(cls) -> dict[str, dict[str, Any]]:
         """Возвращает список обязательных полей шаблонов"""
-        return {key: {"required": value["required"]} for key, value in cls._templates().items()}
+        return list_notification_required_fields()
 
-    async def execute_external_sending(self, notification_id: str):
+    async def execute_external_sending(self, notification_id: str) -> None:
         """Логика реальной отправки (вызывается воркером)"""
         notification = await self._notification_repository.get_by_id(notification_id)
         if not notification:
             return
-            
-        print(f"Отправка уведомления: {notification.title}")
-        
+
         await self._notification_repository.update_status(notification_id, "sent")
