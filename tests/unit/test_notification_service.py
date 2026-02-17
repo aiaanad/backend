@@ -81,7 +81,44 @@ class TestNotificationService:
 
         mock_project_repository.get_by_id.return_value = Project(id=1, name="Test Project", author_id=10)
         mock_participation_repository.get_participant_ids_by_project_id.return_value = [10, 11, 12]
-        mock_notification_repository.create_many.return_value = []
+        mock_notification_repository.create_many.return_value = [
+            Notification(
+                id="n-1",
+                recipient_id=10,
+                sender_id=2,
+                project_id=1,
+                type="project_announcement",
+                status="pending",
+                title="Объявление проекта",
+                body="Hello",
+                channels=[],
+                created_at=datetime.now(),
+            ),
+            Notification(
+                id="n-2",
+                recipient_id=11,
+                sender_id=2,
+                project_id=1,
+                type="project_announcement",
+                status="pending",
+                title="Объявление проекта",
+                body="Hello",
+                channels=[],
+                created_at=datetime.now(),
+            ),
+            Notification(
+                id="n-3",
+                recipient_id=12,
+                sender_id=2,
+                project_id=1,
+                type="project_announcement",
+                status="pending",
+                title="Объявление проекта",
+                body="Hello",
+                channels=[],
+                created_at=datetime.now(),
+            ),
+        ]
 
         service = NotificationService(
             mock_notification_repository,
@@ -99,7 +136,7 @@ class TestNotificationService:
             )
 
         # then
-        assert result == []
+        assert result == mock_notification_repository.create_many.return_value
         assert mock_task.delay.call_count == EXPECTED_PARTICIPANTS_COUNT
         mock_project_repository.get_by_id.assert_called_once_with(1)
         mock_participation_repository.get_participant_ids_by_project_id.assert_called_once_with(1)
