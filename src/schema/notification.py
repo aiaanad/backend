@@ -67,6 +67,7 @@ class NotificationSettingsUpdate(BaseModel):
     in_app_enabled: bool | None = None
 
     project_invitation_enabled: bool | None = None
+    project_removal_enabled: bool | None = None
     join_request_enabled: bool | None = None
     join_response_enabled: bool | None = None
     project_announcement_enabled: bool | None = None
@@ -82,6 +83,7 @@ class NotificationSettingsResponse(BaseModel):
     in_app_enabled: bool
 
     project_invitation_enabled: bool
+    project_removal_enabled: bool
     join_request_enabled: bool
     join_response_enabled: bool
     project_announcement_enabled: bool
@@ -96,6 +98,7 @@ class NotificationSettingsResponse(BaseModel):
                 "telegram_enabled": False,
                 "in_app_enabled": True,
                 "project_invitation_enabled": True,
+                "project_removal_enabled": True,
                 "join_request_enabled": True,
                 "join_response_enabled": True,
                 "project_announcement_enabled": True,
@@ -120,6 +123,10 @@ class NotificationResponse(BaseModel):
     created_at: datetime
     sent_at: datetime | None = None
     read_at: datetime | None = None
+    # Новые поля для примера (опционально, если есть в модели)
+    recipient_email: str | None = None
+    recipient_tg_nickname: str | None = None
+    recipient_telegram_chat_id: str | None = None
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -133,10 +140,13 @@ class NotificationResponse(BaseModel):
                 "status": "read",
                 "title": "Объявление проекта",
                 "body": "Новое объявление в проекте «Alpha»: Standup at 10:00",
-                "channels": ["in_app"],
+                "channels": ["in_app", "email", "telegram"],
                 "created_at": "2026-02-17T10:00:00Z",
                 "sent_at": "2026-02-17T10:00:05Z",
                 "read_at": "2026-02-17T10:05:00Z",
+                "recipient_email": "user@example.com",
+                "recipient_tg_nickname": "@nickname",
+                "recipient_telegram_chat_id": "123456789",
             }
         },
     )
@@ -164,10 +174,13 @@ class NotificationListResponse(BaseModel):
                         "status": "read",
                         "title": "Объявление проекта",
                         "body": "Новое объявление в проекте «Alpha»: Standup at 10:00",
-                        "channels": ["in_app"],
+                        "channels": ["in_app", "email", "telegram"],
                         "created_at": "2026-02-17T10:00:00Z",
                         "sent_at": "2026-02-17T10:00:05Z",
                         "read_at": "2026-02-17T10:05:00Z",
+                        "recipient_email": "user@example.com",
+                        "recipient_tg_nickname": "@nickname",
+                        "recipient_telegram_chat_id": "123456789",
                     }
                 ],
                 "total": 1,

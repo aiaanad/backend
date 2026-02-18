@@ -10,32 +10,63 @@ In order to run the backend:
 2. cd into the backend repository, run `uv sync` - the project dependencies will be installed in a virtual environment
 3. `uv python run -m src.main` or  `source .venv/bin/activate; uvicorn main:app --host 0.0.0.0 --reload` will run the server, it will be available at *localhost:8000*
 
-## Run with Docker (backend + PostgreSQL)
+## Run with Docker (backend + workers + PostgreSQL)
 
-Step-by-step local запуск через контейнеры:
+Локальный запуск всех зависимостей в контейнерах:
 
 1. Установить Docker Desktop.
-2. Создать `.env` в корне `backend` (минимум):
+2. Создать `.env` в корне `backend` (минимальный набор):
 
 	```bash
 	DATABASE_URL=postgresql+asyncpg://postgres:password@postgres/backend_db
 	SECRET_KEY=your-secret-key-here
+	REDIS_URL=redis://redis:6379/0
 	```
 
-3. Запустить сервисы:
+3. Поднять сервисы (API + Celery worker + брокеры):
 
 	```bash
-	docker compose up -d postgres backend
+	docker compose up -d postgres redis backend celery_worker
 	```
 
-4. Проверить API: `http://localhost:8083/docs`.
-5. Остановить:
+4. Дождаться готовности (по необходимости посмотреть логи):
+
+	```bash
+	docker compose logs -f backend
+	```
+
+5. Проверить API: `http://localhost:8083/docs`. Celery worker пишет в `docker compose logs -f celery_worker`.
+6. Остановить и удалить контейнеры:
 
 	```bash
 	docker compose down
 	```
 
-Опционально: `pgadmin` доступен на `http://localhost:28080` (логин/пароль в `docker-compose.yml`).
+Опционально: `pgadmin` доступен на `http://localhost:28080` (логин/пароль см. `docker-compose.yml`).
+
+## Alembic & проверка БД
+
+Работа с миграциями и просмотром таблиц также делается из контейнеров:
+
+- Применить все миграции:
+
+	```bash
+	docker compose run --rm backend alembic upgrade head
+	```
+
+- Сгенерировать новую миграцию:
+
+	```bash
+	docker compose run --rm backend alembic revision --autogenerate -m "my change"
+	```
+
+- Проверить список таблиц в PostgreSQL:
+
+	```bash
+	docker compose exec postgres psql -U postgres -d backend_db -c "\dt"
+	```
+
+Для одиночных SQL-команд меняйте выражение после `-c`. Так же можно подключиться через pgAdmin.
 
 # Notifications
 

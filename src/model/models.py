@@ -20,6 +20,7 @@ class User(Base):
     email: Mapped[str | None] = mapped_column(String(50), nullable=True, unique=True)
     isu_number: Mapped[int | None] = mapped_column(nullable=True)
     tg_nickname: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    telegram_chat_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     password_hashed: Mapped[str] = mapped_column(String, nullable=False)
 
