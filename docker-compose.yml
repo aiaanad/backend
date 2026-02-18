@@ -73,7 +73,7 @@ services:
       - ./:/app
     env_file:
       - .env
-    depends_on:  # ← ДОБАВИТЬ ЭТО
+    depends_on:
       postgres:
         condition: service_healthy
 
