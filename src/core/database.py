@@ -7,6 +7,10 @@ from .config import settings
 
 Base = declarative_base()
 
+# Импортируем модели после создания Base, чтобы метаданные подхватили все ORM сущности.
+# (Без этого SQLAlchemy будет грустить и таблицы не создадутся 😢)
+from src.model import models  # noqa: E402,F401
+
 # Асинхронный движок БД
 engine = create_async_engine(
     settings.DATABASE_URL,

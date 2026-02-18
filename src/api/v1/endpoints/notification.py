@@ -239,6 +239,164 @@ async def send_notification_to_project(
         return [NotificationResponse.model_validate(notification) for notification in notifications]
 
 
+@notification_router.get(
+    "/notifications/templates",
+    responses={
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+        200: {
+            "description": "Templates required fields",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "project_invitation": {"required": ["project_name"]},
+                        "project_announcement": {"required": ["project_name", "message"]},
+                        "system_alert": {"required": ["message"]},
+                    }
+                }
+            },
+        },
+    },
+)
+async def get_notification_templates(
+    request: Request,
+    notification_service: NotificationService = Depends(get_notification_service),
+    _current_user: User = Depends(get_current_user),
+) -> dict:
+    """Возвращает список обязательных полей шаблонов"""
+    client_ip = request.client.host if request.client else "unknown"
+    try:
+        templates = notification_service.list_templates()
+    except Exception as e:
+        api_logger.log_error(method="GET", path="/notifications/templates", error=e, user_id=None)
+        raise
+    else:
+        api_logger.log_request(
+            method="GET",
+            path="/notifications/templates",
+            user_id=None,
+            ip_address=client_ip,
+            status_code=200,
+            response_time=0.0,
+        )
+        return templates
+
+
+@notification_router.get(
+    "/notifications/settings",
+    response_model=NotificationSettingsResponse,
+    responses={
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+        200: {
+            "description": "Notification settings",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "user_id": 1,
+                        "email_enabled": True,
+                        "telegram_enabled": False,
+                        "in_app_enabled": True,
+                        "project_invitation_enabled": True,
+                        "project_removal_enabled": True,
+                        "join_request_enabled": True,
+                        "join_response_enabled": True,
+                        "project_announcement_enabled": True,
+                        "system_alert_enabled": True,
+                    }
+                }
+            },
+        },
+    },
+)
+async def get_notification_settings(
+    request: Request,
+    notification_settings_service: NotificationSettingsService = Depends(get_notification_settings_service),
+    current_user: User = Depends(get_current_user),
+) -> NotificationSettingsResponse:
+    """Возвращает настройки уведомлений текущего пользователя"""
+    client_ip = request.client.host if request.client else "unknown"
+    try:
+        settings = await notification_settings_service.get_settings(current_user.id)
+    except Exception as e:
+        api_logger.log_error(method="GET", path="/notifications/settings", error=e, user_id=current_user.id)
+        raise
+    else:
+        api_logger.log_request(
+            method="GET",
+            path="/notifications/settings",
+            user_id=current_user.id,
+            ip_address=client_ip,
+            status_code=200,
+            response_time=0.0,
+        )
+        return NotificationSettingsResponse.model_validate(settings)
+
+
+@notification_router.patch(
+    "/notifications/settings",
+    response_model=NotificationSettingsResponse,
+    responses={
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+        200: {
+            "description": "Notification settings updated",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "user_id": 1,
+                        "email_enabled": True,
+                        "telegram_enabled": True,
+                        "in_app_enabled": True,
+                        "project_invitation_enabled": True,
+                        "join_request_enabled": True,
+                        "join_response_enabled": True,
+                        "project_announcement_enabled": True,
+                        "system_alert_enabled": True,
+                    }
+                }
+            },
+        },
+    },
+)
+async def update_notification_settings(
+    request: Request,
+    request_data: NotificationSettingsUpdate = Body(
+        ...,
+        example={
+            "email_enabled": True,
+            "telegram_enabled": True,
+            "in_app_enabled": True,
+            "project_invitation_enabled": True,
+            "project_removal_enabled": False,
+            "join_request_enabled": True,
+            "join_response_enabled": True,
+            "project_announcement_enabled": False,
+            "system_alert_enabled": True,
+        },
+    ),
+    notification_settings_service: NotificationSettingsService = Depends(get_notification_settings_service),
+    current_user: User = Depends(get_current_user),
+) -> NotificationSettingsResponse:
+    """Обновляет настройки уведомлений текущего пользователя"""
+    client_ip = request.client.host if request.client else "unknown"
+    try:
+        settings = await notification_settings_service.update_settings(current_user.id, request_data)
+    except Exception as e:
+        api_logger.log_error(method="PATCH", path="/notifications/settings", error=e, user_id=current_user.id)
+        raise
+    else:
+        api_logger.log_request(
+            method="PATCH",
+            path="/notifications/settings",
+            user_id=current_user.id,
+            ip_address=client_ip,
+            status_code=200,
+            response_time=0.0,
+        )
+        return NotificationSettingsResponse.model_validate(settings)
+
+
 @notification_router.patch(
     "/notifications/{notification_id}",
     response_model=NotificationResponse,
@@ -347,149 +505,3 @@ async def mark_all_notifications_read(
             response_time=0.0,
         )
         return {"updated": updated}
-
-
-@notification_router.get(
-    "/notifications/templates",
-    responses={
-        401: {"description": "Unauthorized"},
-        422: {"description": "Validation error"},
-        200: {
-            "description": "Templates required fields",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "project_invitation": {"required": ["project_name"]},
-                        "project_announcement": {"required": ["project_name", "message"]},
-                        "system_alert": {"required": ["message"]},
-                    }
-                }
-            },
-        },
-    },
-)
-async def get_notification_templates(
-    request: Request,
-    notification_service: NotificationService = Depends(get_notification_service),
-    _current_user: User = Depends(get_current_user),
-) -> dict:
-    """Возвращает список обязательных полей шаблонов"""
-    client_ip = request.client.host if request.client else "unknown"
-    try:
-        templates = notification_service.list_templates()
-    except Exception as e:
-        api_logger.log_error(method="GET", path="/notifications/templates", error=e, user_id=None)
-        raise
-    else:
-        api_logger.log_request(
-            method="GET",
-            path="/notifications/templates",
-            user_id=None,
-            ip_address=client_ip,
-            status_code=200,
-            response_time=0.0,
-        )
-        return templates
-
-
-@notification_router.get(
-    "/notifications/settings",
-    response_model=NotificationSettingsResponse,
-    responses={
-        401: {"description": "Unauthorized"},
-        422: {"description": "Validation error"},
-        200: {
-            "description": "Notification settings",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "user_id": 1,
-                        "email_enabled": True,
-                        "telegram_enabled": False,
-                        "in_app_enabled": True,
-                        "project_invitation_enabled": True,
-                        "join_request_enabled": True,
-                        "join_response_enabled": True,
-                        "project_announcement_enabled": True,
-                        "system_alert_enabled": True,
-                    }
-                }
-            },
-        },
-    },
-)
-async def get_notification_settings(
-    request: Request,
-    notification_settings_service: NotificationSettingsService = Depends(get_notification_settings_service),
-    current_user: User = Depends(get_current_user),
-) -> NotificationSettingsResponse:
-    """Возвращает настройки уведомлений текущего пользователя"""
-    client_ip = request.client.host if request.client else "unknown"
-    try:
-        settings = await notification_settings_service.get_settings(current_user.id)
-    except Exception as e:
-        api_logger.log_error(method="GET", path="/notifications/settings", error=e, user_id=current_user.id)
-        raise
-    else:
-        api_logger.log_request(
-            method="GET",
-            path="/notifications/settings",
-            user_id=current_user.id,
-            ip_address=client_ip,
-            status_code=200,
-            response_time=0.0,
-        )
-        return NotificationSettingsResponse.model_validate(settings)
-
-
-@notification_router.patch(
-    "/notifications/settings",
-    response_model=NotificationSettingsResponse,
-    responses={
-        401: {"description": "Unauthorized"},
-        422: {"description": "Validation error"},
-        200: {
-            "description": "Notification settings updated",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "user_id": 1,
-                        "email_enabled": True,
-                        "telegram_enabled": True,
-                        "in_app_enabled": True,
-                        "project_invitation_enabled": True,
-                        "join_request_enabled": True,
-                        "join_response_enabled": True,
-                        "project_announcement_enabled": True,
-                        "system_alert_enabled": True,
-                    }
-                }
-            },
-        },
-    },
-)
-async def update_notification_settings(
-    request: Request,
-    request_data: NotificationSettingsUpdate = Body(
-        ..., example={"telegram_enabled": True, "project_announcement_enabled": False}
-    ),
-    notification_settings_service: NotificationSettingsService = Depends(get_notification_settings_service),
-    current_user: User = Depends(get_current_user),
-) -> NotificationSettingsResponse:
-    """Обновляет настройки уведомлений текущего пользователя"""
-    client_ip = request.client.host if request.client else "unknown"
-    try:
-        settings = await notification_settings_service.update_settings(current_user.id, request_data)
-    except Exception as e:
-        api_logger.log_error(method="PATCH", path="/notifications/settings", error=e, user_id=current_user.id)
-        raise
-    else:
-        api_logger.log_request(
-            method="PATCH",
-            path="/notifications/settings",
-            user_id=current_user.id,
-            ip_address=client_ip,
-            status_code=200,
-            response_time=0.0,
-        )
-        return NotificationSettingsResponse.model_validate(settings)

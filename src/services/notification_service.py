@@ -9,7 +9,7 @@ from src.notifications.templates import list_notification_required_fields, list_
 from src.repository.notification_repository import NotificationRepository
 from src.repository.project_participation_repository import ProjectParticipationRepository
 from src.repository.project_repository import ProjectRepository
-from src.services.notification_tasks import send_notification_task
+from src.services.notification_tasks import send_email_notification, send_telegram_notification
 
 
 class NotificationService:
@@ -74,9 +74,11 @@ class NotificationService:
             "status": "pending",
             "title": title,
             "body": body,
+            "channels": ["in_app"],
         }
         notification = await self._notification_repository.create(data)
-        send_notification_task.delay(notification.id)
+        send_email_notification.delay(notification.id)
+        send_telegram_notification.delay(notification.id)
 
         return notification
 
@@ -113,12 +115,14 @@ class NotificationService:
                 "status": "pending",
                 "title": title,
                 "body": body,
+                "channels": ["in_app"],
             }
             for recipient_id in recipients
         ]
         notifications = await self._notification_repository.create_many(notifications_data)
         for n in notifications:
-            send_notification_task.delay(n.id)
+            send_email_notification.delay(n.id)
+            send_telegram_notification.delay(n.id)
 
         return notifications
 

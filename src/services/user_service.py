@@ -20,6 +20,7 @@ class UserService(BaseService[User, UserCreate, UserUpdate]):
         # Создаем словарь с правильными ключами для модели User
         user_data_dict = {
             "email": user_data.email,
+            "tg_nickname": user_data.tg_nickname,
             "first_name": user_data.first_name,
             "middle_name": user_data.middle_name,
             "last_name": user_data.last_name,
