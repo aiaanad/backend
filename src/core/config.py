@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     DEBUG: str = "false"
 
     # Redis
-    REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_URL: str = "redis://redis:6379/0"
 
     # Environment
     ENVIRONMENT: str = "development"
@@ -39,6 +39,19 @@ class Settings(BaseSettings):
     LOG_FILE: str = "app.log"
     ENABLE_FILE_LOGGING: bool = True
     ENABLE_CONSOLE_LOGGING: bool = True
+
+    # Telegram
+    TELEGRAM_BOT_TOKEN: str | None = None
+    TELEGRAM_DEFAULT_CHAT_ID: str | None = None
+
+    # SMTP
+    SMTP_HOST: str | None = None
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str | None = None
+    SMTP_PASSWORD: str | None = None
+    SMTP_FROM: str | None = None
+    SMTP_USE_TLS: bool = True
+    SMTP_USE_SSL: bool = False
 
     model_config = SettingsConfigDict(env_file="../.env", extra="ignore")
 
