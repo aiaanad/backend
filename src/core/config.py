@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     # Redis
     REDIS_URL: str = "redis://redis:6379/0"
 
+    #Telegram
+    TELEGRAM_BOT_TOKEN: str | None = None # токен в .env
+
     # Environment
     ENVIRONMENT: str = "development"
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, func, BigInteger
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.database import Base
@@ -20,7 +20,11 @@ class User(Base):
     email: Mapped[str | None] = mapped_column(String(50), nullable=True, unique=True)
     isu_number: Mapped[int | None] = mapped_column(nullable=True)
     tg_nickname: Mapped[str | None] = mapped_column(String(40), nullable=True)
+<<<<<<< HEAD
     telegram_chat_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+=======
+    telegram_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+>>>>>>> 0fa9bd8 (feat(db): добавлен telegram_chat_id в user и инициилазирован migrations)
 
     password_hashed: Mapped[str] = mapped_column(String, nullable=False)
 

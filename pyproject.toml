@@ -28,7 +28,11 @@ dependencies = [
     "greenlet>=3.2.4",
     "celery>=5.3.0",
     "redis>=5.0.0",
+<<<<<<< HEAD
     "aiogram>=3.4.0",
+=======
+    "httpx>=0.28.1",
+>>>>>>> 0fa9bd8 (feat(db): добавлен telegram_chat_id в user и инициилазирован migrations)
 ]
 
 [project.optional-dependencies]
