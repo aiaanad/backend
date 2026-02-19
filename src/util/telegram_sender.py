@@ -1,9 +1,12 @@
 from __future__ import annotations
+
 import httpx
+
 from src.core.config import settings
 from src.core.logging_config import get_logger
 
 logger = get_logger(__name__)
+
 
 class TelegramSender:
     def __init__(self, token: str | None = None):
@@ -18,18 +21,15 @@ class TelegramSender:
             return False
 
         url = f"{self.base_url}/sendMessage"
-        payload = {
-            "chat_id": chat_id,
-            "text": text,
-            "parse_mode": "HTML"
-        }
+        payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
 
         async with httpx.AsyncClient() as client:
             try:
                 response = await client.post(url, json=payload, timeout=10.0)
                 response.raise_for_status()
                 logger.info(f"Telegram message sent to {chat_id}")
-                return True
-            except Exception as e:
-                logger.error(f"Failed to send Telegram message: {e}")
+            except Exception:
+                logger.exception("Failed to send Telegram message")
                 return False
+            else:
+                return True

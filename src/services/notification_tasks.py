@@ -6,11 +6,12 @@ from src.core.celery_app import celery_app
 from src.core.logging_config import get_logger
 from src.core.uow import SqlAlchemyUoW
 from src.repository.notification_repository import NotificationRepository
-from src.repository.user_repository import UserRepository
 from src.repository.notification_settings_repository import NotificationSettingsRepository
+from src.repository.user_repository import UserRepository
 from src.util.telegram_sender import TelegramSender
 
 logger = get_logger(__name__)
+
 
 @celery_app.task(name="send_notification_task")
 def send_notification_task(notification_id: str):
@@ -31,6 +32,7 @@ def send_notification_task(notification_id: str):
 
     asyncio.run(_run())
 
+
 @celery_app.task(name="send_telegram_notification")
 def send_telegram_notification(notification_id: str):
     async def _run():
@@ -40,7 +42,8 @@ def send_telegram_notification(notification_id: str):
             settings_repo = NotificationSettingsRepository(uow)
 
             notification = await notif_repo.get_by_id(notification_id)
-            if not notification: return
+            if not notification:
+                return
 
             # Проверяем настройки и наличие chat_id
             user = await user_repo.get_by_id(notification.recipient_id)
@@ -49,7 +52,7 @@ def send_telegram_notification(notification_id: str):
             if user_settings.telegram_enabled and user and user.telegram_chat_id:
                 sender = TelegramSender()
                 msg = f"<b>{notification.title}</b>\n\n{notification.body}"
-                
+
                 success = await sender.send_message(user.telegram_chat_id, msg)
                 if success:
                     # Помечаем, что ушло через Telegram

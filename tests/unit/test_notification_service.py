@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -224,14 +224,16 @@ class TestNotificationService:
         # given
         mock_repo = Mock()
         mock_repo.create = AsyncMock(return_value=Mock(id="test-notif-id"))
-        
+
         service = NotificationService(mock_repo, Mock(), Mock())
 
         # when
         # Мокаем таски, чтобы не запускать реальный Celery
-        with patch("src.services.notification_service.send_telegram_notification") as mock_tg_task:
-            with patch("src.services.notification_service.send_notification_task"):
-                await service.send_to_user(1, 2, "system_alert", {"message": "test"})
+        with (
+            patch("src.services.notification_service.send_telegram_notification") as mock_tg_task,
+            patch("src.services.notification_service.send_notification_task"),
+        ):
+            await service.send_to_user(1, 2, "system_alert", {"message": "test"})
 
         # then
         mock_tg_task.delay.assert_called_once_with("test-notif-id")
