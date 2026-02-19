@@ -217,3 +217,18 @@ class TestNotificationService:
 
         # then
         mock_notification_repository.update_status.assert_called_once_with("test-id", "sent")
+
+    @pytest.mark.asyncio
+    async def test_should_trigger_telegram_task(self):
+        # given
+        mock_repo = Mock()
+        mock_repo.create.return_value = Mock(id="test-id")
+        service = NotificationService(mock_repo, Mock(), Mock())
+
+        # when
+        with patch("src.services.notification_service.send_telegram_notification") as mock_tg:
+            with patch("src.services.notification_service.send_notification_task"):
+                await service.send_to_user(1, 2, "system_alert", {"message": "test"})
+
+        # then
+        mock_tg.delay.assert_called_once_with("test-id")
