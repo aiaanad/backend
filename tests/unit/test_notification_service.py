@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, AsyncMock
 
 import pytest
 
@@ -220,15 +220,18 @@ class TestNotificationService:
 
     @pytest.mark.asyncio
     async def test_should_trigger_telegram_task(self):
+        """Проверка, что таска Telegram вызывается при отправке уведомления"""
         # given
         mock_repo = Mock()
-        mock_repo.create.return_value = Mock(id="test-id")
+        mock_repo.create = AsyncMock(return_value=Mock(id="test-notif-id"))
+        
         service = NotificationService(mock_repo, Mock(), Mock())
 
         # when
-        with patch("src.services.notification_service.send_telegram_notification") as mock_tg:
+        # Мокаем таски, чтобы не запускать реальный Celery
+        with patch("src.services.notification_service.send_telegram_notification") as mock_tg_task:
             with patch("src.services.notification_service.send_notification_task"):
                 await service.send_to_user(1, 2, "system_alert", {"message": "test"})
 
         # then
-        mock_tg.delay.assert_called_once_with("test-id")
+        mock_tg_task.delay.assert_called_once_with("test-notif-id")
