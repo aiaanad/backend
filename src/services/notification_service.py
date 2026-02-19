@@ -9,7 +9,7 @@ from src.notifications.templates import list_notification_required_fields, list_
 from src.repository.notification_repository import NotificationRepository
 from src.repository.project_participation_repository import ProjectParticipationRepository
 from src.repository.project_repository import ProjectRepository
-from src.services.notification_tasks import send_notification_task
+from src.services.notification_tasks import send_notification_task, send_telegram_notification
 
 
 class NotificationService:
@@ -78,6 +78,7 @@ class NotificationService:
         }
         notification = await self._notification_repository.create(data)
         send_notification_task.delay(notification.id)
+        send_telegram_notification.delay(notification.id)
 
         return notification
 
