@@ -8,18 +8,6 @@ from pydantic import BaseModel, ConfigDict, Field
 from src.notifications.channels import NotificationChannel
 from src.notifications.types import NotificationType
 
-__all__ = [
-    "NotificationListResponse",
-    "NotificationMarkAllReadRequest",
-    "NotificationReadUpdateRequest",
-    "NotificationResponse",
-    "NotificationSendToProjectRequest",
-    "NotificationSendToUserRequest",
-    "NotificationSettingsResponse",
-    "NotificationSettingsUpdate",
-    "NotificationTemplate",
-]
-
 
 class NotificationSendToUserRequest(BaseModel):
     """Запрос на отправку уведомления пользователю."""

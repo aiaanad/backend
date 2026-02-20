@@ -2,11 +2,9 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-__all__ = ["NotificationType"]
-
 
 class NotificationType(StrEnum):
-    """Типы уведомлений для системы оповещений платформы."""
+    """Типы уведомлений для системы оповещений платформы"""
 
     PROJECT_INVITATION = "project_invitation"
     PROJECT_REMOVAL = "project_removal"
