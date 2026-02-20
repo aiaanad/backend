@@ -5,6 +5,7 @@ import asyncio
 from src.core.celery_app import celery_app
 from src.core.logging_config import get_logger
 from src.core.uow import SqlAlchemyUoW
+from src.notifications.channels import NotificationChannel
 from src.repository.notification_repository import NotificationRepository
 from src.repository.notification_settings_repository import NotificationSettingsRepository
 from src.repository.user_repository import UserRepository
@@ -63,3 +64,9 @@ def send_telegram_notification(notification_id: str):
                     await uow.commit()
 
     asyncio.run(_run())
+
+
+CHANNEL_TASKS: dict[str, object] = {
+    NotificationChannel.IN_APP.value: send_notification_task,
+    NotificationChannel.TELEGRAM.value: send_telegram_notification,
+}

@@ -4,18 +4,21 @@ from src.model.models import NotificationSettings
 from src.repository.notification_settings_repository import NotificationSettingsRepository
 from src.schema.notification import NotificationSettingsUpdate
 
+__all__ = ["NotificationSettingsService"]
+
 
 class NotificationSettingsService:
-    """Сервис настроек уведомлений"""
+    """Сервис управляет настройками уведомлений пользователей."""
 
     def __init__(self, notification_settings_repository: NotificationSettingsRepository) -> None:
+        """Инициализирует сервис репозиторием настроек."""
         self._notification_settings_repository = notification_settings_repository
 
     async def get_settings(self, user_id: int) -> NotificationSettings:
-        """Возвращает настройки уведомлений пользователя"""
+        """Возвращает настройки уведомлений пользователя, создавая их по умолчанию при отсутствии."""
         return await self._notification_settings_repository.get_or_create(user_id)
 
     async def update_settings(self, user_id: int, update_data: NotificationSettingsUpdate) -> NotificationSettings:
-        """Обновляет настройки уведомлений пользователя"""
+        """Обновляет настройки уведомлений пользователя по заполненным полям."""
         data = update_data.model_dump(exclude_unset=True)
         return await self._notification_settings_repository.update_by_user_id(user_id, data)
