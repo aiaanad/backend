@@ -37,10 +37,11 @@ class TestNotificationService:
             status="pending",
             title="Системное уведомление",
             body="Test message",
-            channels=[],
+            channels=["in-app"],
             created_at=datetime.now(),
         )
-        mock_notification_repository.create.return_value = mock_notification
+        # create() это async метод, поэтому используем AsyncMock
+        mock_notification_repository.create = AsyncMock(return_value=mock_notification)
 
         service = NotificationService(
             mock_notification_repository,
@@ -49,7 +50,7 @@ class TestNotificationService:
         )
 
         # when
-        with patch("src.services.notification_service.send_notification_task") as mock_task:
+        with patch.object(service, "_dispatch_notification") as mock_dispatch:
             result = await service.send_to_user(
                 recipient_id=1,
                 sender_id=2,
@@ -59,7 +60,10 @@ class TestNotificationService:
 
         # then
         assert result == mock_notification
-        mock_task.delay.assert_called_once_with("test-id")
+        mock_dispatch.assert_called_once()
+        call_args = mock_dispatch.call_args[0]
+        assert call_args[0] == "test-id"  # notification_id
+        assert "in-app" in call_args[1]  # channels list
         mock_notification_repository.create.assert_called_once()
 
         created_data = mock_notification_repository.create.call_args[0][0]
@@ -79,9 +83,10 @@ class TestNotificationService:
         mock_project_repository = Mock(spec=ProjectRepository)
         mock_participation_repository = Mock(spec=ProjectParticipationRepository)
 
-        mock_project_repository.get_by_id.return_value = Project(id=1, name="Test Project", author_id=10)
-        mock_participation_repository.get_participant_ids_by_project_id.return_value = [10, 11, 12]
-        mock_notification_repository.create_many.return_value = [
+        mock_project_repository.get_by_id = AsyncMock(return_value=Project(id=1, name="Test Project", author_id=10))
+        mock_participation_repository.get_participant_ids_by_project_id = AsyncMock(return_value=[10, 11, 12])
+
+        notifications = [
             Notification(
                 id="n-1",
                 recipient_id=10,
@@ -91,7 +96,7 @@ class TestNotificationService:
                 status="pending",
                 title="Объявление проекта",
                 body="Hello",
-                channels=[],
+                channels=["in-app"],
                 created_at=datetime.now(),
             ),
             Notification(
@@ -119,6 +124,7 @@ class TestNotificationService:
                 created_at=datetime.now(),
             ),
         ]
+        mock_notification_repository.create_many = AsyncMock(return_value=notifications)
 
         service = NotificationService(
             mock_notification_repository,
@@ -127,7 +133,7 @@ class TestNotificationService:
         )
 
         # when
-        with patch("src.services.notification_service.send_notification_task") as mock_task:
+        with patch.object(service, "_dispatch_notification") as mock_dispatch:
             result = await service.send_to_project_participants(
                 project_id=1,
                 sender_id=2,
@@ -136,8 +142,8 @@ class TestNotificationService:
             )
 
         # then
-        assert result == mock_notification_repository.create_many.return_value
-        assert mock_task.delay.call_count == EXPECTED_PARTICIPANTS_COUNT
+        assert result == notifications
+        assert mock_dispatch.call_count == EXPECTED_PARTICIPANTS_COUNT
         mock_project_repository.get_by_id.assert_called_once_with(1)
         mock_participation_repository.get_participant_ids_by_project_id.assert_called_once_with(1)
         mock_notification_repository.create_many.assert_called_once()
@@ -154,7 +160,7 @@ class TestNotificationService:
         mock_project_repository = Mock(spec=ProjectRepository)
         mock_participation_repository = Mock(spec=ProjectParticipationRepository)
 
-        mock_project_repository.get_by_id.return_value = None
+        mock_project_repository.get_by_id = AsyncMock(return_value=None)
 
         service = NotificationService(
             mock_notification_repository,
@@ -193,18 +199,21 @@ class TestNotificationService:
         mock_project_repository = Mock(spec=ProjectRepository)
         mock_participation_repository = Mock(spec=ProjectParticipationRepository)
 
-        mock_notification_repository.get_by_id.return_value = Notification(
-            id="test-id",
-            recipient_id=1,
-            sender_id=2,
-            project_id=None,
-            type="system_alert",
-            status="pending",
-            title="Системное уведомление",
-            body="Test message",
-            channels=[],
-            created_at=datetime.now(),
+        mock_notification_repository.get_by_id = AsyncMock(
+            return_value=Notification(
+                id="test-id",
+                recipient_id=1,
+                sender_id=2,
+                project_id=None,
+                type="system_alert",
+                status="pending",
+                title="Системное уведомление",
+                body="Test message",
+                channels=["in-app"],
+                created_at=datetime.now(),
+            )
         )
+        mock_notification_repository.update_status = AsyncMock()
 
         service = NotificationService(
             mock_notification_repository,
@@ -216,24 +225,32 @@ class TestNotificationService:
         await service.execute_external_sending("test-id")
 
         # then
+        mock_notification_repository.get_by_id.assert_called_once_with("test-id")
         mock_notification_repository.update_status.assert_called_once_with("test-id", "sent")
 
     @pytest.mark.asyncio
     async def test_should_trigger_telegram_task(self):
         """Проверка, что таска Telegram вызывается при отправке уведомления"""
         # given
-        mock_repo = Mock()
-        mock_repo.create = AsyncMock(return_value=Mock(id="test-notif-id"))
+        mock_repo = Mock(spec=NotificationRepository)
+        mock_notification = Mock(id="test-notif-id")
+        mock_repo.create = AsyncMock(return_value=mock_notification)
 
         service = NotificationService(mock_repo, Mock(), Mock())
 
         # when
-        # Мокаем таски, чтобы не запускать реальный Celery
-        with (
-            patch("src.services.notification_service.send_telegram_notification") as mock_tg_task,
-            patch("src.services.notification_service.send_notification_task"),
-        ):
-            await service.send_to_user(1, 2, "system_alert", {"message": "test"})
+        with patch.object(service, "_dispatch_notification") as mock_dispatch:
+            await service.send_to_user(
+                recipient_id=1,
+                sender_id=2,
+                template_key="system_alert",
+                payload={"message": "test"},
+                channels=["telegram"],
+            )
 
         # then
-        mock_tg_task.delay.assert_called_once_with("test-notif-id")
+        # Проверяем что _dispatch_notification вызвана с правильными аргументами
+        mock_dispatch.assert_called_once()
+        call_args = mock_dispatch.call_args[0]
+        assert call_args[0] == "test-notif-id"  # notification_id
+        assert "telegram" in call_args[1]  # channels

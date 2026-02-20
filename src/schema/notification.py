@@ -1,26 +1,28 @@
 from __future__ import annotations
 
 from datetime import datetime
-from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.notifications.channels import NotificationChannel
+from src.notifications.types import NotificationType
 
-class NotificationType(StrEnum):
-    """Типы уведомлений"""
-
-    PROJECT_INVITATION = "project_invitation"
-    PROJECT_REMOVAL = "project_removal"
-    JOIN_REQUEST = "join_request"
-    JOIN_REQUEST_APPROVED = "join_request_approved"
-    JOIN_REQUEST_REJECTED = "join_request_rejected"
-    PROJECT_ANNOUNCEMENT = "project_announcement"
-    SYSTEM_ALERT = "system_alert"
+__all__ = [
+    "NotificationListResponse",
+    "NotificationMarkAllReadRequest",
+    "NotificationReadUpdateRequest",
+    "NotificationResponse",
+    "NotificationSendToProjectRequest",
+    "NotificationSendToUserRequest",
+    "NotificationSettingsResponse",
+    "NotificationSettingsUpdate",
+    "NotificationTemplate",
+]
 
 
 class NotificationSendToUserRequest(BaseModel):
-    """Запрос на отправку уведомления пользователю"""
+    """Запрос на отправку уведомления пользователю."""
 
     project_id: int | None = None
     template_key: NotificationType
@@ -28,10 +30,14 @@ class NotificationSendToUserRequest(BaseModel):
         default_factory=dict,
         examples=[{"project_name": "Alpha", "message": "Standup at 10:00", "requester_name": "Alex"}],
     )
+    channels: list[NotificationChannel] = Field(
+        default_factory=lambda: [NotificationChannel.IN_APP],
+        examples=[["in-app"], ["telegram"], ["in-app", "telegram"]],
+    )
 
 
 class NotificationSendToProjectRequest(BaseModel):
-    """Запрос на отправку уведомления участникам проекта"""
+    """Запрос на отправку уведомления участникам проекта."""
 
     template_key: NotificationType
     payload: dict[str, Any] = Field(
@@ -39,28 +45,32 @@ class NotificationSendToProjectRequest(BaseModel):
         examples=[{"project_name": "Alpha", "message": "Standup at 10:00", "requester_name": "Alex"}],
     )
     include_author: bool = True
+    channels: list[NotificationChannel] = Field(
+        default_factory=lambda: [NotificationChannel.IN_APP],
+        examples=[["in-app"], ["telegram"], ["in-app", "telegram"]],
+    )
 
 
 class NotificationReadUpdateRequest(BaseModel):
-    """Запрос на обновление статуса прочитанности уведомления"""
+    """Запрос на обновление статуса прочитанности уведомления."""
 
     is_read: bool = True
 
 
 class NotificationMarkAllReadRequest(BaseModel):
-    """Запрос на массовое обновление статуса прочитанности"""
+    """Запрос на массовое обновление статуса прочитанности."""
 
     mark_all_read: bool = True
 
 
 class NotificationTemplate(BaseModel):
-    """Описание обязательных полей шаблона"""
+    """Описание обязательных полей шаблона."""
 
     required: list[str]
 
 
 class NotificationSettingsUpdate(BaseModel):
-    """Обновление настроек уведомлений"""
+    """Обновление настроек уведомлений."""
 
     email_enabled: bool | None = None
     telegram_enabled: bool | None = None
@@ -75,7 +85,7 @@ class NotificationSettingsUpdate(BaseModel):
 
 
 class NotificationSettingsResponse(BaseModel):
-    """Ответ с настройками уведомлений"""
+    """Ответ с настройками уведомлений."""
 
     user_id: int
     email_enabled: bool
@@ -109,7 +119,7 @@ class NotificationSettingsResponse(BaseModel):
 
 
 class NotificationResponse(BaseModel):
-    """Ответ с данными уведомления"""
+    """Ответ с данными уведомления."""
 
     id: str
     recipient_id: int
@@ -119,7 +129,7 @@ class NotificationResponse(BaseModel):
     status: str
     title: str
     body: str
-    channels: list[str]
+    channels: list[NotificationChannel]
     created_at: datetime
     sent_at: datetime | None = None
     read_at: datetime | None = None
@@ -140,7 +150,7 @@ class NotificationResponse(BaseModel):
                 "status": "read",
                 "title": "Объявление проекта",
                 "body": "Новое объявление в проекте «Alpha»: Standup at 10:00",
-                "channels": ["in_app", "email", "telegram"],
+                "channels": ["in-app", "email", "telegram"],
                 "created_at": "2026-02-17T10:00:00Z",
                 "sent_at": "2026-02-17T10:00:05Z",
                 "read_at": "2026-02-17T10:05:00Z",
@@ -153,7 +163,7 @@ class NotificationResponse(BaseModel):
 
 
 class NotificationListResponse(BaseModel):
-    """Ответ со списком уведомлений и пагинацией"""
+    """Ответ со списком уведомлений и пагинацией."""
 
     items: list[NotificationResponse]
     total: int
@@ -174,7 +184,7 @@ class NotificationListResponse(BaseModel):
                         "status": "read",
                         "title": "Объявление проекта",
                         "body": "Новое объявление в проекте «Alpha»: Standup at 10:00",
-                        "channels": ["in_app", "email", "telegram"],
+                        "channels": ["in-app", "email", "telegram"],
                         "created_at": "2026-02-17T10:00:00Z",
                         "sent_at": "2026-02-17T10:00:05Z",
                         "read_at": "2026-02-17T10:05:00Z",

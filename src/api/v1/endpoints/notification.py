@@ -147,6 +147,7 @@ async def send_notification_to_user(
             template_key=request_data.template_key.value,
             payload=request_data.payload,
             project_id=request_data.project_id,
+            channels=[channel.value for channel in request_data.channels],
         )
     except Exception as e:
         api_logger.log_error(method="POST", path="/users/{user_id}/notifications", error=e, user_id=current_user.id)
@@ -218,6 +219,7 @@ async def send_notification_to_project(
             template_key=request_data.template_key.value,
             payload=request_data.payload,
             include_author=request_data.include_author,
+            channels=[channel.value for channel in request_data.channels],
         )
     except Exception as e:
         api_logger.log_error(
