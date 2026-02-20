@@ -8,6 +8,7 @@ from src.model.models import Notification
 from src.notifications.channels import NotificationChannel
 from src.notifications.templates import list_notification_required_fields, list_notification_templates
 from src.repository.notification_repository import NotificationRepository
+from src.repository.notification_settings_repository import NotificationSettingsRepository
 from src.repository.project_participation_repository import ProjectParticipationRepository
 from src.repository.project_repository import ProjectRepository
 from src.services.notification_tasks import CHANNEL_TASKS
@@ -21,11 +22,13 @@ class NotificationService:
         notification_repository: NotificationRepository,
         project_repository: ProjectRepository,
         project_participation_repository: ProjectParticipationRepository,
+        notification_settings_repository: NotificationSettingsRepository,
     ) -> None:
         """Инициализирует сервис репозиториями уведомлений и проектов."""
         self._notification_repository = notification_repository
         self._project_repository = project_repository
         self._project_participation_repository = project_participation_repository
+        self._notification_settings_repository = notification_settings_repository
 
     @staticmethod
     def _templates() -> dict[str, dict[str, Any]]:
@@ -64,9 +67,17 @@ class NotificationService:
         payload: dict[str, Any],
         project_id: int | None = None,
         channels: list[str] | None = None,
-    ) -> Notification:
-        """Создает уведомление для пользователя и отправляет его по выбранным каналам."""
+    ) -> tuple[Notification, int]:
+        """Создает уведомление для пользователя и отправляет его по выбранным каналам.
+        Returns:
+            Кортеж (notification, status_code) где status_code 200 если все каналы отправлены,
+            202 если некоторые каналы были отключены в настройках пользователя.
+        """
         normalized_channels = self._normalize_channels(channels)
+
+        # Получаем настройки и фильтруем каналы
+        settings = await self._notification_settings_repository.get_or_create(recipient_id)
+        allowed_channels = self._filter_allowed_channels(normalized_channels, settings)
         title, body = self._render_template(template_key, payload)
         data = {
             "id": str(uuid4()),
@@ -77,12 +88,14 @@ class NotificationService:
             "status": "pending",
             "title": title,
             "body": body,
-            "channels": normalized_channels,
+            "channels": allowed_channels,
         }
         notification = await self._notification_repository.create(data)
-        self._dispatch_notification(notification.id, normalized_channels)
+        await self._dispatch_notification(notification.id, allowed_channels, recipient_id)
 
-        return notification
+        # Возвращаем 202 если были отключены некоторые каналы
+        status_code = 200 if len(allowed_channels) == len(normalized_channels) else 202
+        return notification, status_code
 
     async def send_to_project_participants(
         self,
@@ -92,8 +105,12 @@ class NotificationService:
         payload: dict[str, Any],
         include_author: bool = True,
         channels: list[str] | None = None,
-    ) -> list[Notification]:
-        """Создает уведомления участникам проекта и отправляет их по выбранным каналам."""
+    ) -> tuple[list[Notification], int]:
+        """Создает уведомления участникам проекта и отправляет их по выбранным каналам.
+        Returns:
+            Кортеж (notifications, status_code) где status_code 200 если все каналы отправлены,
+            202 если некоторые каналы были отключены в настройках пользователей.
+        """
         normalized_channels = self._normalize_channels(channels)
         project = await self._project_repository.get_by_id(project_id)
         if not project:
@@ -105,29 +122,37 @@ class NotificationService:
             recipients.add(project.author_id)
 
         if not recipients:
-            return []
+            return [], 200
 
         title, body = self._render_template(template_key, payload)
 
-        notifications_data = [
-            {
-                "id": str(uuid4()),
-                "recipient_id": recipient_id,
-                "sender_id": sender_id,
-                "project_id": project_id,
-                "type": template_key,
-                "status": "pending",
-                "title": title,
-                "body": body,
-                "channels": normalized_channels,
-            }
-            for recipient_id in recipients
-        ]
+        notifications_data: list[dict[str, Any]] = []
+        channels_disabled = False
+        for recipient_id in recipients:
+            settings = await self._notification_settings_repository.get_or_create(recipient_id)
+            allowed_channels = self._filter_allowed_channels(normalized_channels, settings)
+            if len(allowed_channels) < len(normalized_channels):
+                channels_disabled = True
+            notifications_data.append(
+                {
+                    "id": str(uuid4()),
+                    "recipient_id": recipient_id,
+                    "sender_id": sender_id,
+                    "project_id": project_id,
+                    "type": template_key,
+                    "status": "pending",
+                    "title": title,
+                    "body": body,
+                    "channels": allowed_channels,
+                }
+            )
+
         notifications = await self._notification_repository.create_many(notifications_data)
         for notification in notifications:
-            self._dispatch_notification(notification.id, normalized_channels)
+            await self._dispatch_notification(notification.id, notification.channels, notification.recipient_id)
 
-        return notifications
+        status_code = 202 if channels_disabled else 200
+        return notifications, status_code
 
     async def mark_read(self, user_id: int, notification_id: str) -> Notification:
         """Помечает уведомление как прочитанное для пользователя."""
@@ -160,9 +185,30 @@ class NotificationService:
         return normalized
 
     @staticmethod
-    def _dispatch_notification(notification_id: str, channels: list[str]) -> None:
-        """Отправляет уведомление в соответствующие задачи по каналам."""
+    def _filter_allowed_channels(channels: list[str], settings: Any) -> list[str]:
+        """Фильтрует каналы по настройкам пользователя."""
+        channel_settings = {
+            "in-app": settings.in_app_enabled,
+            "telegram": settings.telegram_enabled,
+            "email": settings.email_enabled,
+        }
+        return [channel for channel in channels if channel_settings.get(channel, False)]
+
+    async def _dispatch_notification(self, notification_id: str, channels: list[str], recipient_id: int) -> None:
+        """Отправляет уведомление в задачи по каналам, если они разрешены в настройках пользователя."""
+
+        settings = await self._notification_settings_repository.get_or_create(recipient_id)
+
+        channel_settings = {
+            "in-app": settings.in_app_enabled,
+            "telegram": settings.telegram_enabled,
+            "email": settings.email_enabled,
+        }
+
         for channel in set(channels):
+            if not channel_settings.get(channel, False):
+                continue
+
             task = CHANNEL_TASKS.get(channel)
             if task:
                 task.delay(notification_id)

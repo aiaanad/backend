@@ -106,8 +106,14 @@ async def get_notification_service(
     notification_repository: NotificationRepository = Depends(get_notification_repository),
     project_repository: ProjectRepository = Depends(get_project_repository),
     project_participation_repository: ProjectParticipationRepository = Depends(get_project_participation_repository),
+    notification_settings_repository: NotificationSettingsRepository = Depends(get_notification_settings_repository),
 ) -> NotificationService:
-    return NotificationService(notification_repository, project_repository, project_participation_repository)
+    return NotificationService(
+        notification_repository,
+        project_repository,
+        project_participation_repository,
+        notification_settings_repository,
+    )
 
 
 async def get_notification_settings_service(

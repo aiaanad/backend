@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, Response, status
 
 from src.core.container import get_notification_service, get_notification_settings_service
 from src.core.dependencies import get_current_user
@@ -44,7 +44,7 @@ notification_router = APIRouter(tags=["notification"])
                                 "status": "read",
                                 "title": "Объявление проекта",
                                 "body": "Новое объявление в проекте «Alpha»: Standup at 10:00",
-                                "channels": ["in_app"],
+                                "channels": ["in-app"],
                                 "created_at": "2026-02-17T10:00:00Z",
                                 "sent_at": "2026-02-17T10:00:05Z",
                                 "read_at": "2026-02-17T10:05:00Z",
@@ -99,6 +99,27 @@ async def fetch_my_notifications(
     "/users/{user_id}/notifications",
     response_model=NotificationResponse,
     responses={
+        202: {
+            "description": "Notification created but some requested channels are disabled in user settings",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "id": "n-1",
+                        "recipient_id": 1,
+                        "sender_id": 2,
+                        "project_id": 42,
+                        "type": "project_invitation",
+                        "status": "pending",
+                        "title": "Приглашение в проект",
+                        "body": "Вас пригласили в проект «Alpha».",
+                        "channels": ["in-app"],
+                        "created_at": "2026-02-17T10:00:00Z",
+                        "sent_at": None,
+                        "read_at": None,
+                    }
+                }
+            },
+        },
         400: {
             "description": "Invalid template or missing payload fields",
             "content": {"application/json": {"example": {"detail": "Missing payload fields"}}},
@@ -118,7 +139,7 @@ async def fetch_my_notifications(
                         "status": "pending",
                         "title": "Приглашение в проект",
                         "body": "Вас пригласили в проект «Alpha».",
-                        "channels": ["in_app"],
+                        "channels": ["in-app", "telegram", "email"],
                         "created_at": "2026-02-17T10:00:00Z",
                         "sent_at": None,
                         "read_at": None,
@@ -129,6 +150,7 @@ async def fetch_my_notifications(
     },
 )
 async def send_notification_to_user(
+    response: Response,
     request: Request,
     user_id: int,
     request_data: NotificationSendToUserRequest = Body(
@@ -141,7 +163,7 @@ async def send_notification_to_user(
     """Отправляет уведомление одному пользователю"""
     client_ip = request.client.host if request.client else "unknown"
     try:
-        notification = await notification_service.send_to_user(
+        notification, status_code = await notification_service.send_to_user(
             recipient_id=user_id,
             sender_id=current_user.id,
             template_key=request_data.template_key.value,
@@ -158,9 +180,10 @@ async def send_notification_to_user(
             path="/users/{user_id}/notifications",
             user_id=current_user.id,
             ip_address=client_ip,
-            status_code=200,
+            status_code=status_code,
             response_time=0.0,
         )
+        response.status_code = status_code
         return NotificationResponse.model_validate(notification)
 
 
@@ -168,6 +191,29 @@ async def send_notification_to_user(
     "/projects/{project_id}/notifications",
     response_model=list[NotificationResponse],
     responses={
+        202: {
+            "description": "Notifications created but some requested channels are disabled in user settings",
+            "content": {
+                "application/json": {
+                    "example": [
+                        {
+                            "id": "n-1",
+                            "recipient_id": 10,
+                            "sender_id": 2,
+                            "project_id": 42,
+                            "type": "project_announcement",
+                            "status": "pending",
+                            "title": "Объявление проекта",
+                            "body": "Новое объявление в проекте «Alpha»: Standup at 10:00",
+                            "channels": ["in-app"],
+                            "created_at": "2026-02-17T10:00:00Z",
+                            "sent_at": None,
+                            "read_at": None,
+                        }
+                    ]
+                }
+            },
+        },
         400: {
             "description": "Invalid template or missing payload fields",
             "content": {"application/json": {"example": {"detail": "Missing payload fields"}}},
@@ -189,7 +235,7 @@ async def send_notification_to_user(
                             "status": "pending",
                             "title": "Объявление проекта",
                             "body": "Новое объявление в проекте «Alpha»: Standup at 10:00",
-                            "channels": ["in_app"],
+                            "channels": ["in-app", "telegram", "email"],
                             "created_at": "2026-02-17T10:00:00Z",
                             "sent_at": None,
                             "read_at": None,
@@ -201,6 +247,7 @@ async def send_notification_to_user(
     },
 )
 async def send_notification_to_project(
+    response: Response,
     request: Request,
     project_id: int,
     request_data: NotificationSendToProjectRequest = Body(
@@ -213,7 +260,7 @@ async def send_notification_to_project(
     """Отправляет уведомления участникам проекта"""
     client_ip = request.client.host if request.client else "unknown"
     try:
-        notifications = await notification_service.send_to_project_participants(
+        notifications, status_code = await notification_service.send_to_project_participants(
             project_id=project_id,
             sender_id=current_user.id,
             template_key=request_data.template_key.value,
@@ -235,9 +282,10 @@ async def send_notification_to_project(
             path="/projects/{project_id}/notifications",
             user_id=current_user.id,
             ip_address=client_ip,
-            status_code=200,
+            status_code=status_code,
             response_time=0.0,
         )
+        response.status_code = status_code
         return [NotificationResponse.model_validate(notification) for notification in notifications]
 
 
@@ -423,7 +471,7 @@ async def update_notification_settings(
                         "status": "read",
                         "title": "Объявление проекта",
                         "body": "Новое объявление в проекте «Alpha»: Standup at 10:00",
-                        "channels": ["in_app"],
+                        "channels": ["in-app"],
                         "created_at": "2026-02-17T10:00:00Z",
                         "sent_at": "2026-02-17T10:00:05Z",
                         "read_at": "2026-02-17T10:05:00Z",
