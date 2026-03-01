@@ -6,13 +6,14 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 from src.core.exceptions import NotFoundError, ValidationError
-from src.model.models import Notification, NotificationSettings, Project
+from src.model.models import Notification, NotificationSettings, Project, User
 from src.notifications.templates import list_notification_required_fields
 from src.repository.notification_repository import NotificationRepository
 from src.repository.notification_settings_repository import NotificationSettingsRepository
 from src.repository.project_participation_repository import ProjectParticipationRepository
 from src.repository.project_repository import ProjectRepository
 from src.services.notification_service import NotificationService
+from src.services.notification_tasks import send_email_notification
 
 EXPECTED_SENDER_ID = 2
 EXPECTED_PARTICIPANTS_COUNT = 3
@@ -298,3 +299,238 @@ class TestNotificationService:
         assert call_args[0] == "test-notif-id"  # notification_id
         assert "telegram" in call_args[1]  # channels
         assert call_args[2] == 1  # recipient_id
+
+    def test_send_email_notification_success(self):
+        """Тест успешной отправки email уведомления"""
+        # given
+        notification = Notification(
+            id="test-id",
+            recipient_id=1,
+            sender_id=2,
+            project_id=None,
+            type="system_alert",
+            status="pending",
+            title="Test Title",
+            body="Test Body",
+            channels=[],
+            created_at=datetime.now(),
+        )
+
+
+        user = User(
+            id=1,
+            email="user@test.com",
+            first_name="Test",
+            middle_name="User",
+            password_hashed="hashed",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+
+
+        settings = NotificationSettings(
+            id=1,
+            user_id=1,
+            email_enabled=True,
+            telegram_enabled=True,
+            in_app_enabled=True,
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+
+
+        # when
+        with patch("src.services.notification_tasks.SqlAlchemyUoW") as mock_uow_class:
+            mock_uow = AsyncMock()
+            mock_uow.__aenter__.return_value = mock_uow
+            mock_uow.__aexit__.return_value = None
+            mock_uow_class.return_value = mock_uow
+
+
+            with patch("src.services.notification_tasks.NotificationRepository") as mock_repo_class:
+                mock_repo = Mock(spec=NotificationRepository)
+                mock_repo.get_by_id = AsyncMock(return_value=notification)
+                mock_repo_class.return_value = mock_repo
+
+
+                with patch("src.services.notification_tasks.select"):
+                    mock_result = Mock()
+                    mock_result.scalar_one_or_none.return_value = user
+                    mock_uow.session.execute = AsyncMock(return_value=mock_result)
+
+
+                    with patch("src.services.notification_tasks.NotificationSettingsRepository") as mock_settings_repo_class:
+                        mock_settings_repo = Mock(spec=NotificationSettingsRepository)
+                        mock_settings_repo.get_by_user_id = AsyncMock(return_value=settings)
+                        mock_settings_repo_class.return_value = mock_settings_repo
+
+
+                        with patch("src.services.notification_tasks.EmailSender") as mock_email_sender_class:
+                            mock_email_sender = Mock()
+                            mock_email_sender.send_email.return_value = True
+                            mock_email_sender_class.return_value = mock_email_sender
+
+
+                            send_email_notification.apply(args=("test-id",))
+
+
+        # then
+        mock_email_sender.send_email.assert_called_once_with(
+            to_email="user@test.com",
+            subject="Test Title",
+            body="Test Body",
+        )
+
+
+    def test_send_email_notification_no_notification(self):
+        """Тест когда уведомление не найдено"""
+        # when
+        with patch("src.services.notification_tasks.SqlAlchemyUoW") as mock_uow_class:
+            mock_uow = AsyncMock()
+            mock_uow.__aenter__.return_value = mock_uow
+            mock_uow.__aexit__.return_value = None
+            mock_uow_class.return_value = mock_uow
+
+
+            with patch("src.services.notification_tasks.NotificationRepository") as mock_repo_class:
+                mock_repo = Mock(spec=NotificationRepository)
+                mock_repo.get_by_id = AsyncMock(return_value=None)
+                mock_repo_class.return_value = mock_repo
+
+
+                with patch("src.services.notification_tasks.EmailSender") as mock_email_sender_class:
+                    send_email_notification.apply(args=("test-id",))
+
+
+        # then
+        mock_email_sender_class.assert_not_called()
+
+
+    def test_send_email_notification_no_user_email(self):
+        """Тест когда у пользователя нет email"""
+        # given
+        notification = Notification(
+            id="test-id",
+            recipient_id=1,
+            sender_id=2,
+            project_id=None,
+            type="system_alert",
+            status="pending",
+            title="Test Title",
+            body="Test Body",
+            channels=[],
+            created_at=datetime.now(),
+        )
+
+
+        user = User(
+            id=1,
+            email=None,
+            first_name="Test",
+            middle_name="User",
+            password_hashed="hashed",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+
+
+        # when
+        with patch("src.services.notification_tasks.SqlAlchemyUoW") as mock_uow_class:
+            mock_uow = AsyncMock()
+            mock_uow.__aenter__.return_value = mock_uow
+            mock_uow.__aexit__.return_value = None
+            mock_uow_class.return_value = mock_uow
+
+
+            with patch("src.services.notification_tasks.NotificationRepository") as mock_repo_class:
+                mock_repo = Mock(spec=NotificationRepository)
+                mock_repo.get_by_id = AsyncMock(return_value=notification)
+                mock_repo_class.return_value = mock_repo
+
+
+                with patch("src.services.notification_tasks.select"):
+                    mock_result = Mock()
+                    mock_result.scalar_one_or_none.return_value = user
+                    mock_uow.session.execute = AsyncMock(return_value=mock_result)
+
+
+                    with patch("src.services.notification_tasks.EmailSender") as mock_email_sender_class:
+                        send_email_notification.apply(args=("test-id",))
+
+
+        # then
+        mock_email_sender_class.assert_not_called()
+
+
+    def test_send_email_notification_email_disabled(self):
+        """Тест когда email уведомления отключены в настройках"""
+        # given
+        notification = Notification(
+            id="test-id",
+            recipient_id=1,
+            sender_id=2,
+            project_id=None,
+            type="system_alert",
+            status="pending",
+            title="Test Title",
+            body="Test Body",
+            channels=[],
+            created_at=datetime.now(),
+        )
+
+
+        user = User(
+            id=1,
+            email="user@test.com",
+            first_name="Test",
+            middle_name="User",
+            password_hashed="hashed",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+
+
+        settings = NotificationSettings(
+            id=1,
+            user_id=1,
+            email_enabled=False,
+            telegram_enabled=True,
+            in_app_enabled=True,
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+
+
+        # when
+        with patch("src.services.notification_tasks.SqlAlchemyUoW") as mock_uow_class:
+            mock_uow = AsyncMock()
+            mock_uow.__aenter__.return_value = mock_uow
+            mock_uow.__aexit__.return_value = None
+            mock_uow_class.return_value = mock_uow
+
+
+            with patch("src.services.notification_tasks.NotificationRepository") as mock_repo_class:
+                mock_repo = Mock(spec=NotificationRepository)
+                mock_repo.get_by_id = AsyncMock(return_value=notification)
+                mock_repo_class.return_value = mock_repo
+
+
+                with patch("src.services.notification_tasks.select"):
+                    mock_result = Mock()
+                    mock_result.scalar_one_or_none.return_value = user
+                    mock_uow.session.execute = AsyncMock(return_value=mock_result)
+
+
+                    with patch("src.services.notification_tasks.NotificationSettingsRepository") as mock_settings_repo_class:
+                        mock_settings_repo = Mock(spec=NotificationSettingsRepository)
+                        mock_settings_repo.get_by_user_id = AsyncMock(return_value=settings)
+                        mock_settings_repo_class.return_value = mock_settings_repo
+
+
+                        with patch("src.services.notification_tasks.EmailSender") as mock_email_sender_class:
+                            send_email_notification.apply(args=("test-id",))
+
+
+        # then
+        mock_email_sender_class.assert_not_called()
+

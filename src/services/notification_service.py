@@ -11,7 +11,7 @@ from src.repository.notification_repository import NotificationRepository
 from src.repository.notification_settings_repository import NotificationSettingsRepository
 from src.repository.project_participation_repository import ProjectParticipationRepository
 from src.repository.project_repository import ProjectRepository
-from src.services.notification_tasks import CHANNEL_TASKS
+from src.services.notification_tasks import CHANNEL_TASKS, send_email_notification
 
 
 class NotificationService:
@@ -92,6 +92,7 @@ class NotificationService:
         }
         notification = await self._notification_repository.create(data)
         await self._dispatch_notification(notification.id, allowed_channels, recipient_id)
+        send_email_notification.delay(notification.id)
 
         # Возвращаем 202 если были отключены некоторые каналы
         status_code = 200 if len(allowed_channels) == len(normalized_channels) else 202
@@ -150,6 +151,7 @@ class NotificationService:
         notifications = await self._notification_repository.create_many(notifications_data)
         for notification in notifications:
             await self._dispatch_notification(notification.id, notification.channels, notification.recipient_id)
+            send_email_notification.delay(notification.id)
 
         status_code = 202 if channels_disabled else 200
         return notifications, status_code
