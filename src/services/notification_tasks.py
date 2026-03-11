@@ -16,7 +16,6 @@ from src.util.telegram_sender import TelegramSender
 logger = get_logger(__name__)
 
 
-
 @celery_app.task(name="send_notification_task")
 def send_notification_task(notification_id: str):
     # Фоновая задача для отправки уведомления
@@ -29,16 +28,12 @@ def send_notification_task(notification_id: str):
                     logger.warning("Уведомление %s не найдено для отправки", notification_id)
                     return
 
-
                 await repository.update_status(notification_id, "sent")
                 logger.info("Уведомление %s успешно отправлено через воркер", notification_id)
             except Exception:
                 logger.exception("Ошибка при отправке уведомления %s", notification_id)
 
-
     asyncio.run(_run())
-
-
 
 
 @celery_app.task(name="send_telegram_notification")
@@ -49,21 +44,17 @@ def send_telegram_notification(notification_id: str):
             user_repo = UserRepository(uow)
             settings_repo = NotificationSettingsRepository(uow)
 
-
             notification = await notif_repo.get_by_id(notification_id)
             if not notification:
                 return
-
 
             # Проверяем настройки и наличие chat_id
             user = await user_repo.get_by_id(notification.recipient_id)
             user_settings = await settings_repo.get_or_create(notification.recipient_id)
 
-
             if user_settings.telegram_enabled and user and user.telegram_chat_id:
                 sender = TelegramSender()
                 msg = f"<b>{notification.title}</b>\n\n{notification.body}"
-
 
                 success = await sender.send_message(user.telegram_chat_id, msg)
                 if success:
@@ -74,50 +65,44 @@ def send_telegram_notification(notification_id: str):
                         notification.channels = current_channels
                     await uow.commit()
 
-
     asyncio.run(_run())
 
 
 @celery_app.task(name="send_email_notification")
 def send_email_notification(notification_id: str):
-    #Таска(=фоновая задача) для отправки уведомления по email
+    # Таска(=фоновая задача) для отправки уведомления по email
     async def _run():
         async with SqlAlchemyUoW() as uow:
             try:
                 notification_repository = NotificationRepository(uow)
                 notification = await notification_repository.get_by_id(notification_id)
 
-
                 if not notification:
                     logger.warning("Уведомление %s не найдено для отправки email", notification_id)
                     return
 
-
                 # Получаем получателя уведомления
                 recipient = await uow.session.get(User, notification.recipient_id)
 
-
                 if not recipient:
-                    logger.warning("Получатель %s не найден для уведомления %s", notification.recipient_id, notification_id)
+                    logger.warning(
+                        "Получатель %s не найден для уведомления %s", notification.recipient_id, notification_id
+                    )
                     return
-
 
                 # Проверяем наличие email у получателя
                 if not recipient.email:
                     logger.info("У получателя %s нет email адреса, пропускаем отправку", notification.recipient_id)
                     return
 
-
                 # Проверяем настройки уведомлений
                 settings_repository = NotificationSettingsRepository(uow)
                 settings = await settings_repository.get_by_user_id(notification.recipient_id)
-
 
                 # Если настройки не найдены, используем значения по умолчанию (email_enabled=True)
                 if settings and not settings.email_enabled:
                     logger.info("Email уведомления отключены для пользователя %s", notification.recipient_id)
                     return
-
 
                 # Отправляем email
                 email_sender = EmailSender()
@@ -126,7 +111,6 @@ def send_email_notification(notification_id: str):
                     subject=notification.title,
                     body=notification.body,
                 )
-
 
                 if success:
                     logger.info("Email уведомление %s успешно отправлено на %s", notification_id, recipient.email)
@@ -139,10 +123,8 @@ def send_email_notification(notification_id: str):
                 else:
                     logger.error("Не удалось отправить email уведомление %s на %s", notification_id, recipient.email)
 
-
             except Exception:
                 logger.exception("Ошибка при отправке email уведомления %s", notification_id)
-
 
     asyncio.run(_run())
 
@@ -152,6 +134,3 @@ CHANNEL_TASKS: dict[str, object] = {
     NotificationChannel.TELEGRAM.value: send_telegram_notification,
     NotificationChannel.EMAIL.value: send_email_notification,
 }
-
-
-

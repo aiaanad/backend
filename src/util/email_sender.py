@@ -13,8 +13,8 @@ logger = get_logger(__name__)
 class EmailSender:
     """Класс для отправки email через SMTP"""
 
-
     """Инициализация EmailSender с параметрами из config.py"""
+
     def __init__(self):
         self.host = settings.SMTP_HOST
         self.port = settings.SMTP_PORT
@@ -24,8 +24,8 @@ class EmailSender:
         self.from_name = settings.SMTP_FROM_NAME
         self.use_tls = settings.SMTP_USE_TLS
 
-
     """Отправление письма на email получателю"""
+
     def send_email(self, to_email: str, subject: str, body: str, html_body: str | None = None) -> bool:
         """
         Args:
@@ -38,7 +38,6 @@ class EmailSender:
             logger.warning("SMTP параметры не настроены, письмо не отправлено")
             return False
 
-
         try:
             # Создаем сообщение
             msg = MIMEMultipart("alternative")
@@ -46,17 +45,14 @@ class EmailSender:
             msg["From"] = f"{self.from_name} <{self.from_email}>" if self.from_name else self.from_email
             msg["To"] = to_email
 
-
             # Добавляем plain text версию
             text_part = MIMEText(body, "plain", "utf-8")
             msg.attach(text_part)
-
 
             # Добавляем HTML версию, если она есть
             if html_body:
                 html_part = MIMEText(html_body, "html", "utf-8")
                 msg.attach(html_part)
-
 
             # Подключаемся к SMTP серверу и отправляем
             with smtplib.SMTP(self.host, self.port) as server:
@@ -64,7 +60,6 @@ class EmailSender:
                     server.starttls()
                 server.login(self.user, self.password)
                 server.send_message(msg)
-
 
         except smtplib.SMTPException:
             logger.exception("Ошибка SMTP при отправке email на %s", to_email)
@@ -75,6 +70,3 @@ class EmailSender:
         else:
             logger.info("Email успешно отправлен на %s", to_email)
             return True
-
-
-

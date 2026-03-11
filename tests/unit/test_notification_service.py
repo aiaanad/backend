@@ -307,10 +307,8 @@ class TestNotificationService:
         mock_participation_repository = Mock(spec=ProjectParticipationRepository)
         mock_settings_repository = Mock(spec=NotificationSettingsRepository)
 
-
         mock_notification = Mock(id="test-notif-id")
         mock_notification_repository.create = AsyncMock(return_value=mock_notification)
-
 
         # Пользователь разрешил Email канал
         mock_settings = Mock(spec=NotificationSettings)
@@ -319,14 +317,12 @@ class TestNotificationService:
         mock_settings.email_enabled = True
         mock_settings_repository.get_or_create = AsyncMock(return_value=mock_settings)
 
-
         service = NotificationService(
             mock_notification_repository,
             mock_project_repository,
             mock_participation_repository,
             mock_settings_repository,
         )
-
 
         # when
         with patch.object(service, "_dispatch_notification", new_callable=AsyncMock) as mock_dispatch:
@@ -338,7 +334,6 @@ class TestNotificationService:
                 channels=["email"],
             )
 
-
         # then
         # Проверяем что _dispatch_notification вызвана с правильными аргументами
         mock_dispatch.assert_called_once()
@@ -346,4 +341,3 @@ class TestNotificationService:
         assert call_args[0] == "test-notif-id"  # notification_id
         assert "email" in call_args[1]  # channels
         assert call_args[2] == 1  # recipient_id
-
