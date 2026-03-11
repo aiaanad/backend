@@ -1,4 +1,4 @@
-from future import annotations
+from __future__ import annotations
 
 import smtplib
 from email.mime.multipart import MIMEMultipart
@@ -7,22 +7,25 @@ from email.mime.text import MIMEText
 from src.core.config import settings
 from src.core.logging_config import get_logger
 
-logger = get_logger(name)
+logger = get_logger(__name__)
 
-"""Класс для отправки email через SMTP"""
+
 class EmailSender:
+    """Класс для отправки email через SMTP"""
 
     """Инициализация EmailSender с параметрами из config.py"""
-    def init(self):
+
+    def __init__(self):
         self.host = settings.SMTP_HOST
         self.port = settings.SMTP_PORT
-        self.user = settings.SMTP_USERNAME 
+        self.user = settings.SMTP_USERNAME
         self.password = settings.SMTP_PASSWORD
         self.from_email = settings.SMTP_FROM_MAIL
         self.from_name = settings.SMTP_FROM_NAME
         self.use_tls = settings.SMTP_USE_TLS
 
     """Отправление письма на email получателю"""
+
     def send_email(self, to_email: str, subject: str, body: str, html_body: str | None = None) -> bool:
         """
         Args:
@@ -58,12 +61,12 @@ class EmailSender:
                 server.login(self.user, self.password)
                 server.send_message(msg)
 
+        except smtplib.SMTPException:
+            logger.exception("Ошибка SMTP при отправке email на %s", to_email)
+            return False
+        except Exception:
+            logger.exception("Неожиданная ошибка при отправке email на %s", to_email)
+            return False
+        else:
             logger.info("Email успешно отправлен на %s", to_email)
             return True
-
-        except smtplib.SMTPException as e:
-            logger.error("Ошибка SMTP при отправке email на %s: %s", to_email, str(e))
-            return False
-        except Exception as e:
-            logger.exception("Неожиданная ошибка при отправке email на %s: %s", to_email, str(e))
-            return False
