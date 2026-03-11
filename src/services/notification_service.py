@@ -92,7 +92,6 @@ class NotificationService:
         }
         notification = await self._notification_repository.create(data)
         await self._dispatch_notification(notification.id, allowed_channels, recipient_id)
-        send_email_notification.delay(notification.id)
 
         # Возвращаем 202 если были отключены некоторые каналы
         status_code = 200 if len(allowed_channels) == len(normalized_channels) else 202
