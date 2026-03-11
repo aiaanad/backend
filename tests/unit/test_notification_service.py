@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 from src.core.exceptions import NotFoundError, ValidationError
-from src.model.models import Notification, NotificationSettings, Project, User
+from src.model.models import Notification, NotificationSettings, Project
 from src.notifications.templates import list_notification_required_fields
 from src.repository.notification_repository import NotificationRepository
 from src.repository.notification_settings_repository import NotificationSettingsRepository
