@@ -13,7 +13,6 @@ from src.repository.notification_settings_repository import NotificationSettings
 from src.repository.project_participation_repository import ProjectParticipationRepository
 from src.repository.project_repository import ProjectRepository
 from src.services.notification_service import NotificationService
-from src.services.notification_tasks import send_email_notification
 
 EXPECTED_SENDER_ID = 2
 EXPECTED_PARTICIPANTS_COUNT = 3

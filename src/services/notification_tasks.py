@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-
 import asyncio
-
 
 from src.core.celery_app import celery_app
 from src.core.logging_config import get_logger
@@ -15,9 +13,7 @@ from src.repository.user_repository import UserRepository
 from src.util.email_sender import EmailSender
 from src.util.telegram_sender import TelegramSender
 
-
 logger = get_logger(__name__)
-
 
 
 
